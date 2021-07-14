@@ -1,10 +1,12 @@
 import json
 import os
 from dataclasses import dataclass
-from typing import Dict, List
-
-from schema import And, Schema
 from pathlib import Path
+from typing import Dict, List, Optional
+
+from schema import And, Schema, SchemaError
+
+from .logging import logger
 
 
 @dataclass
@@ -24,6 +26,7 @@ config_validation_schema = Schema(
 
 
 def get_configs(path: str = "config") -> Dict[str, Config]:
+    logger.info("Чтение конфигов...")
     configs: Dict[str, Config] = {}
     path = Path(path)
     for file_path in os.listdir(path):
@@ -31,16 +34,23 @@ def get_configs(path: str = "config") -> Dict[str, Config]:
             file_splitted = os.path.splitext(path / file_path)
             if file_splitted[1] == ".json":
                 cfg_name = os.path.splitext(file_path)[0]
-                if cfg_name == 'example':
+                if cfg_name == "example":
                     continue
-                cfg = _get_config(path / file_path)
-                configs[cfg_name] = cfg
+                logger.info("Найден конфиг '%s'" % cfg_name)
+                cfg = _get_config(path / file_path, cfg_name)
+                if cfg:
+                    configs[cfg_name] = cfg
     return configs
 
 
-def _get_config(filepath: str) -> Config:
+def _get_config(filepath: str, cfg_name: str) -> Optional[Config]:
     with open(filepath) as cfg_file:
         cfg_data = json.load(cfg_file)
+
+    try:
         config_validation_schema.validate(cfg_data)
-    cfg = Config(cfg_data["download_path"], cfg_data["mods"])
-    return cfg
+    except SchemaError as err:
+        logger.error("Конфиг '%s' неверный! %s" % (cfg_name, err))
+        return None
+
+    return Config(cfg_data["download_path"], cfg_data["mods"])
