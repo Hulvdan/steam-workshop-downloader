@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "steam-workshop-downloader"
+version = "0.1.0"
+description = ""
+authors = ["Алексей Чистов <aleksey.chistov@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+structlog = "^21.1.0"
+colorama = "^0.4.4"
+requests = "^2.26.0"
+beautifulsoup4 = "^4.9.3"
+aiohttp = "^3.7.4"
+schema = "^0.7.4"
+
+[tool.poetry.dev-dependencies]
+black = "^21.6b0"
+isort = "^5.9.2"
+rope = "^0.19.0"
+mypy = "^0.910"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
