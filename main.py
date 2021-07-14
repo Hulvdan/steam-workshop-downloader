@@ -8,7 +8,7 @@ if __name__ == "__main__":
     downloaders = [Downloader(cfg) for cfg in configs]
 
     loop = asyncio.get_event_loop()
-    pool = [downloader.process() for downloader in downloaders]
+    pool = [downloader.run() for downloader in downloaders]
     loop.run_until_complete(asyncio.wait(pool))
     loop.close()
 

@@ -13,6 +13,7 @@ from .logging import logger
 class Config:
     download_path: str
     mods: List[str]
+    name: str
 
 
 config_validation_schema = Schema(
@@ -25,9 +26,9 @@ config_validation_schema = Schema(
 )
 
 
-def get_configs(path: str = "config") -> Dict[str, Config]:
+def get_configs(path: str = "config") -> List[Config]:
     logger.info("Чтение конфигов...")
-    configs: Dict[str, Config] = {}
+    configs: List[Config] = []
     path = Path(path)
     for file_path in os.listdir(path):
         if os.path.isfile(path / file_path):
@@ -39,7 +40,7 @@ def get_configs(path: str = "config") -> Dict[str, Config]:
                 logger.info("Найден конфиг '%s'" % cfg_name)
                 cfg = _get_config(path / file_path, cfg_name)
                 if cfg:
-                    configs[cfg_name] = cfg
+                    configs.append(cfg)
     return configs
 
 
@@ -53,4 +54,4 @@ def _get_config(filepath: str, cfg_name: str) -> Optional[Config]:
         logger.error("Конфиг '%s' неверный! %s" % (cfg_name, err))
         return None
 
-    return Config(cfg_data["download_path"], cfg_data["mods"])
+    return Config(cfg_data["download_path"], cfg_data["mods"], cfg_name)
