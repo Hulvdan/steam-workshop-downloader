@@ -1,9 +1,9 @@
-import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 
+import commentjson
 from schema import And, Schema, SchemaError
 
 from .logging import logger
@@ -46,7 +46,7 @@ def get_configs(path: str = "config") -> List[Config]:
 
 def _get_config(filepath: str, cfg_name: str) -> Optional[Config]:
     with open(filepath) as cfg_file:
-        cfg_data = json.load(cfg_file)
+        cfg_data = commentjson.load(cfg_file)
 
     try:
         config_validation_schema.validate(cfg_data)

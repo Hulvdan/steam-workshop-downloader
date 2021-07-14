@@ -1,5 +1,7 @@
 {
+    // Папка, в которую будут скачаны моды
     "download_path": "dl",
+    // Список модов для скачивания
     "mods": [
         "https://steamcommunity.com/sharedfiles/filedetails/?id=...",
         "https://steamcommunity.com/sharedfiles/filedetails/?id=..."
