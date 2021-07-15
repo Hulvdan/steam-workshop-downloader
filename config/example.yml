@@ -7,7 +7,7 @@
 download_path: c:\Users\pepe\Documents\My Games\Sid Meier's Civilization VI\Mods
 # Моды
 mods:
-  # Можно записать ссылку...
+  # Можно записать ссылку на мод...
   # Extended Policy Cards
   - https://steamcommunity.com/sharedfiles/filedetails/?id=2266952591
   # Или же просто id
