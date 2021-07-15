@@ -2,6 +2,7 @@ import asyncio
 
 from src.downloader import Downloader
 from src.list_config import get_configs
+from src.logging import logger
 
 if __name__ == "__main__":
     configs = get_configs()
@@ -12,4 +13,4 @@ if __name__ == "__main__":
     loop.run_until_complete(asyncio.wait(pool))
     loop.close()
 
-    print("done")
+    logger.info("Завершено!")
