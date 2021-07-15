@@ -31,7 +31,6 @@ mods:
   - 1947948094 # HotFixes
   - 1958135962 # Better Balanced Starts (BBS)
   - 2115302648 # CQUI - Community Quick User Interface
-  - 2266952591 # Extended Policy Cards
 ```
 
 *__Примечание:__ как указано в файле `config/example.yml`, можно

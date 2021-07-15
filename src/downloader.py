@@ -17,7 +17,6 @@ from .config import (
 )
 from .game_cfg import GameConfig
 from .logging import logger
-from .utils import get_mod_id_from_url
 
 
 @dataclass
@@ -65,38 +64,34 @@ class Downloader:
         """
         self._config = config
 
-    @property
-    def mod_ids(self) -> List[int]:
-        """Список ID'шников модов, указанных пользователем в конфиге."""
-        return [get_mod_id_from_url(mod) for mod in self._config.mods]
-
     async def run(self) -> None:
         """Запуск загрузчика."""
-        logger.info("%s: Получение id'шников модов..." % self._config.name)
-        mod_infos_pool = [self._get_mod_info(mod_id) for mod_id in self.mod_ids]
-        logger.info("%s: Получение названий модов..." % self._config.name)
-        mod_infos = await asyncio.gather(*mod_infos_pool)
+        # mod_infos_pool = [
+        #     self._get_mod_info(mod_id) for mod_id in self._config.mods
+        # ]
+        # logger.info("%s: Получение названий модов..." % self._config.name)
+        # mod_infos = await asyncio.gather(*mod_infos_pool)
 
-        lock = asyncio.Lock()
-        mod_infos_with_uuids: Set[ModInfo] = set()
-        mod_request_pool = [
-            self._make_request(mod_info, mod_infos_with_uuids, lock)
-            for mod_info in mod_infos
-        ]
-        await asyncio.wait(mod_request_pool)
+        # lock = asyncio.Lock()
+        # mod_infos_with_uuids: Set[ModInfo] = set()
+        # mod_request_pool = [
+        #     self._make_request(mod_info, mod_infos_with_uuids, lock)
+        #     for mod_info in mod_infos
+        # ]
+        # await asyncio.wait(mod_request_pool)
 
-        await asyncio.sleep(2)
-        completed_mods: Set[ModInfo] = set()
-        while len(mod_infos_with_uuids) > 0:
-            completed_mods |= await self._check_status(mod_infos_with_uuids)
-            mod_infos_with_uuids -= completed_mods
-            await asyncio.sleep(CHECK_STATUS_INTERVAL)
+        # await asyncio.sleep(2)
+        # completed_mods: Set[ModInfo] = set()
+        # while len(mod_infos_with_uuids) > 0:
+        #     completed_mods |= await self._check_status(mod_infos_with_uuids)
+        #     mod_infos_with_uuids -= completed_mods
+        #     await asyncio.sleep(CHECK_STATUS_INTERVAL)
 
-        downloaded_mods = await asyncio.gather(
-            *[self._stream_download(mod) for mod in completed_mods]
-        )
+        # downloaded_mods = await asyncio.gather(
+        #     *[self._stream_download(mod) for mod in completed_mods]
+        # )
 
-        self._extract_mods(downloaded_mods)
+        # self._extract_mods(downloaded_mods)
 
     async def _get_mod_info(self, item_id: int) -> ModInfo:
         """Получение информации о моде по его ID, а конкретно - его название.

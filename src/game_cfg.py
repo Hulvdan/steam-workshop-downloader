@@ -1,28 +1,33 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Set, TypedDict, Union
 
 import yaml
-from schema import And, Schema, SchemaError
+from schema import And, Or, Schema, SchemaError, Use
 
 from .logging import logger
+from .utils import get_mod_id_from_url
 
 
-@dataclass
+@dataclass(frozen=True, eq=True)
 class GameConfig:
     download_path: str
-    mods: List[str]
+    mods: Set[int]
+    name: str
+
+
+class GameConfigDict(TypedDict):
+    download_path: str
+    mods: List[int]
     name: str
 
 
 config_validation_schema = Schema(
-    And(
-        {
-            "download_path": And(str, len),
-            "mods": And(list),
-        },
-    )
+    {
+        "download_path": And(str, len),
+        "mods": [Use(get_mod_id_from_url)],
+    },
 )
 
 
@@ -48,12 +53,19 @@ def _get_config(
     filepath: Union[str, os.PathLike], cfg_name: str
 ) -> Optional[GameConfig]:
     with open(filepath) as cfg_file:
-        cfg_data = yaml.load(cfg_file)
+        cfg_data: GameConfigDict = yaml.safe_load(cfg_file)
 
     try:
-        config_validation_schema.validate(cfg_data)
+        cfg_data = config_validation_schema.validate(cfg_data)
     except SchemaError as err:
         logger.error("Конфиг '%s' неверный! %s" % (cfg_name, err))
         return None
 
-    return GameConfig(cfg_data["download_path"], cfg_data["mods"], cfg_name)
+    unique_mods: Set[int] = set()
+    for mod in cfg_data["mods"]:
+        if mod in unique_mods:
+            logger.warning("Найден дубликат мода: %s" % mod)
+            continue
+        unique_mods.add(mod)
+
+    return GameConfig(cfg_data["download_path"], unique_mods, cfg_name)
