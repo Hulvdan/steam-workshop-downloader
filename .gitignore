@@ -140,3 +140,4 @@ cython_debug/
 .vscode/
 .download/
 .temp/
+config/

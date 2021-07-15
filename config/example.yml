@@ -1,8 +1,14 @@
+# Это пример конфигурации
+#
+# Все моды в разделе 'mods' будут скачаны, а затем разархивированы по
+# пути, указанном в 'download_path'
+
 # Путь для скачивания
-download_path: dl
+download_path: c:\Users\pepe\Documents\My Games\Sid Meier's Civilization VI\Mods
 # Моды
 mods:
   # Можно записать ссылку...
+  # Extended Policy Cards
   - https://steamcommunity.com/sharedfiles/filedetails/?id=2266952591
   # Или же просто id
-  - 2266952591  # -------------------------------------------- ^
+  - 873246701 # Better Trade Screen
