@@ -11,7 +11,7 @@ import aiofiles
 import aiohttp
 from bs4 import BeautifulSoup
 
-from .list_config import Config
+from .game_cfg import GameConfig
 from .logging import logger
 from .utils import get_mod_id_from_url
 
@@ -43,7 +43,7 @@ CHECK_STATUS_INTERVAL = 0.5  # seconds
 class Downloader:
     count = 0
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: GameConfig) -> None:
         self._config = config
         if __class__.count == 0:
             self._clean_temp_dir()

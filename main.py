@@ -1,7 +1,7 @@
 import asyncio
 
 from src.downloader import Downloader
-from src.list_config import get_configs
+from src.game_cfg import get_configs
 from src.logging import logger
 
 if __name__ == "__main__":

@@ -3,14 +3,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
-import commentjson
+import yaml
 from schema import And, Schema, SchemaError
 
 from .logging import logger
 
 
 @dataclass
-class Config:
+class GameConfig:
     download_path: str
     mods: List[str]
     name: str
@@ -26,14 +26,14 @@ config_validation_schema = Schema(
 )
 
 
-def get_configs(path: str = "config") -> List[Config]:
+def get_configs(path: str = "config") -> List[GameConfig]:
     logger.info("Чтение конфигов...")
-    configs: List[Config] = []
+    configs: List[GameConfig] = []
     path = Path(path)
     for file_path in os.listdir(path):
         if os.path.isfile(path / file_path):
             file_splitted = os.path.splitext(path / file_path)
-            if file_splitted[1] == ".json":
+            if file_splitted[1] in {".yml", ".yaml"}:
                 cfg_name = os.path.splitext(file_path)[0]
                 if cfg_name == "example":
                     continue
@@ -44,9 +44,9 @@ def get_configs(path: str = "config") -> List[Config]:
     return configs
 
 
-def _get_config(filepath: str, cfg_name: str) -> Optional[Config]:
+def _get_config(filepath: str, cfg_name: str) -> Optional[GameConfig]:
     with open(filepath) as cfg_file:
-        cfg_data = commentjson.load(cfg_file)
+        cfg_data = yaml.load(cfg_file)
 
     try:
         config_validation_schema.validate(cfg_data)
@@ -54,4 +54,4 @@ def _get_config(filepath: str, cfg_name: str) -> Optional[Config]:
         logger.error("Конфиг '%s' неверный! %s" % (cfg_name, err))
         return None
 
-    return Config(cfg_data["download_path"], cfg_data["mods"], cfg_name)
+    return GameConfig(cfg_data["download_path"], cfg_data["mods"], cfg_name)
