@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import yaml
 from schema import And, Schema, SchemaError
@@ -26,10 +26,10 @@ config_validation_schema = Schema(
 )
 
 
-def get_configs(path: str = "config") -> List[GameConfig]:
+def get_configs(directory_path: str = "config") -> List[GameConfig]:
     logger.info("Чтение конфигов...")
     configs: List[GameConfig] = []
-    path = Path(path)
+    path = Path(directory_path)
     for file_path in os.listdir(path):
         if os.path.isfile(path / file_path):
             file_splitted = os.path.splitext(path / file_path)
@@ -44,7 +44,9 @@ def get_configs(path: str = "config") -> List[GameConfig]:
     return configs
 
 
-def _get_config(filepath: str, cfg_name: str) -> Optional[GameConfig]:
+def _get_config(
+    filepath: Union[str, os.PathLike], cfg_name: str
+) -> Optional[GameConfig]:
     with open(filepath) as cfg_file:
         cfg_data = yaml.load(cfg_file)
 

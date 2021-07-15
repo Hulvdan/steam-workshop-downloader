@@ -1,7 +1,6 @@
 import asyncio
 import json
-import os
-import shutil
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Set
@@ -11,6 +10,11 @@ import aiofiles
 import aiohttp
 from bs4 import BeautifulSoup
 
+from .config import (
+    CHECK_STATUS_INTERVAL,
+    DOWNLOAD_CHUNK_SIZE,
+    TEMP_DOWNLOAD_PATH,
+)
 from .game_cfg import GameConfig
 from .logging import logger
 from .utils import get_mod_id_from_url
@@ -18,53 +22,56 @@ from .utils import get_mod_id_from_url
 
 @dataclass
 class ModInfo:
+    """Информация о моде.
+
+    Хранит название, id и UUID запроса на скачивание, назначаемый позже.
+    """
+
     name: str
     mod_id: int
     request_uuid: Optional[str] = None
 
     @property
-    def filename(self):
-        return (
-            "_".join([str(self.mod_id), *self.name.split(" ")])
-            .lower()
-            .replace("(", "")
-            .replace(")", "")
-        )
+    def filename(self) -> str:
+        """Название папки, в которую будет распакован мод.
 
-    def __hash__(self):
+        Например, в случае мода 'Better Balanced Starts (BBS)',
+        у которого id=1958135962, папка будет иметь значение
+        `1958135962_better_balanced_starts_bbs`.
+
+        Returns:
+            Название папки.
+        """
+        parts = [str(self.mod_id), *self.name.split(" ")]
+        joined_parts = "_".join(parts).lower()
+        return "".join(re.findall("[a-zA-Z0-9_]+", joined_parts))
+
+    def __hash__(self) -> int:
+        """Хеширование по ID мода."""
         return self.mod_id
 
 
-DOWNLOAD_CHUNK_SIZE = 1024 * 16
-TEMP_DOWNLOAD_PATH = Path(".temp")
-CHECK_STATUS_INTERVAL = 0.5  # seconds
-
-
 class Downloader:
+    """Загрузчик модов конфигурации игры."""
+
+    #: Количество работающих на данный момент загрузчиков.
     count = 0
 
     def __init__(self, config: GameConfig) -> None:
+        """Создание загрузчика.
+
+        Args:
+            config: Конфигурация игры.
+        """
         self._config = config
-        if __class__.count == 0:
-            self._clean_temp_dir()
-        __class__.count += 1
-        if not os.path.exists(TEMP_DOWNLOAD_PATH):
-            os.mkdir(TEMP_DOWNLOAD_PATH)
-
-    def __del__(self):
-        __class__.count -= 1
-        if __class__.count == 0:
-            self._clean_temp_dir()
-
-    def _clean_temp_dir(self):
-        if os.path.exists(TEMP_DOWNLOAD_PATH):
-            shutil.rmtree(TEMP_DOWNLOAD_PATH)
 
     @property
     def mod_ids(self) -> List[int]:
+        """Список ID'шников модов, указанных пользователем в конфиге."""
         return [get_mod_id_from_url(mod) for mod in self._config.mods]
 
     async def run(self) -> None:
+        """Запуск загрузчика."""
         logger.info("%s: Получение id'шников модов..." % self._config.name)
         mod_infos_pool = [self._get_mod_info(mod_id) for mod_id in self.mod_ids]
         logger.info("%s: Получение названий модов..." % self._config.name)
@@ -92,6 +99,17 @@ class Downloader:
         self._extract_mods(downloaded_mods)
 
     async def _get_mod_info(self, item_id: int) -> ModInfo:
+        """Получение информации о моде по его ID, а конкретно - его название.
+
+        Args:
+            item_id: ID мода.
+
+        Raises:
+            ValueError: [description]
+
+        Returns:
+            Информация о моде.
+        """
         info_url = f"http://steamworkshop.download/download/view/{item_id}"
 
         async with aiohttp.ClientSession() as session:
@@ -106,7 +124,7 @@ class Downloader:
 
         links = soup.find_all("a")
         try:
-            title_elem = next(filter(lambda x: "title" in x.attrs, links))
+            title_elem = next(filter(lambda elem: "title" in elem.attrs, links))
         except StopIteration:
             raise ValueError("Не удалость получить название")
 
@@ -151,7 +169,7 @@ class Downloader:
         # }
         #
         # Response:
-        # {"uuid":"995afa62-18fe-4d94-9147-eb1d28b74f39"}
+        # {"uuid": "995afa62-18fe-4d94-9147-eb1d28b74f39"}
         request_url = "https://backend-03-prd.steamworkshopdownloader.io/api/download/request"
         data = {
             "publishedFileId": mod_info.mod_id,
@@ -171,6 +189,7 @@ class Downloader:
                 response = await session.post(
                     request_url, data=data_dumped, headers=headers
                 )
+            response.raise_for_status()
             text = await response.text()
             mod_info.request_uuid = json.loads(text)["uuid"]
             async with lock:
@@ -181,13 +200,12 @@ class Downloader:
                 % (mod_info.name, err)
             )
 
-    async def _check_status(
-        self, mod_infos_with_uuids: Set[ModInfo]
-    ) -> Set[ModInfo]:
+    async def _check_status(self, mods: Set[ModInfo]) -> Set[ModInfo]:
         """Проверить статус файлов.
 
         Args:
-            uuids: Набор незавершённых UUID'ов.
+            mods: Набор информация о модах, в которых указаны поля
+                  `request_uuid`.
 
         Returns:
             Набор завершённых UUID'ов.
@@ -208,7 +226,7 @@ class Downloader:
         # }
         logger.info("Проверка статуса файлов...")
         request_url = "https://backend-03-prd.steamworkshopdownloader.io/api/download/status"
-        data = {"uuids": list(mod.request_uuid for mod in mod_infos_with_uuids)}
+        data = {"uuids": [mod.request_uuid for mod in mods]}
         data_dumped = json.dumps(data)
         headers = {
             "Content-Type": "text/plain",
@@ -226,7 +244,8 @@ class Downloader:
             if uuid_data["status"] == "prepared":
                 completed_mod = next(
                     filter(
-                        lambda x: x.request_uuid == uuid, mod_infos_with_uuids
+                        lambda mod: mod.request_uuid == uuid,
+                        mods,
                     )
                 )
                 completed_mods.add(completed_mod)
@@ -250,7 +269,7 @@ class Downloader:
         async with aiohttp.ClientSession() as session:
             response = await session.get(request_url)
 
-            download_path = self.get_mod_from_download_path(mod)
+            download_path = self._get_mod_temporary_download_path(mod)
             async with aiofiles.open(download_path, "wb") as out_file:
                 while not response.content.at_eof():
                     content = await response.content.read(DOWNLOAD_CHUNK_SIZE)
@@ -259,21 +278,23 @@ class Downloader:
         logger.info("Завершено скачивание '%s'" % mod.name)
         return mod
 
-    def _extract_mods(self, downloaded_mods: Set[ModInfo]) -> None:
+    def _extract_mods(self, downloaded_mods: List[ModInfo]) -> None:
         logger.info("Распаковка модов в '%s'" % self._config.download_path)
         for mod in downloaded_mods:
             logger.debug("Распаковка '%s'" % mod.name)
 
-            from_filepath = self.get_mod_from_download_path(mod)
-            to_filepath = self.get_mod_to_extract_path(mod)
+            from_filepath = self._get_mod_temporary_download_path(mod)
+            to_filepath = self._get_mod_to_extract_path(mod)
             # print(from_filepath, to_filepath)
             with ZipFile(from_filepath, "r") as archive:
                 archive.extractall(to_filepath)
 
-    def get_mod_from_download_path(self, mod: ModInfo) -> str:
+    def _get_mod_temporary_download_path(self, mod: ModInfo) -> str:
+        """Путь к архиву мода во временной папке."""
         return str(TEMP_DOWNLOAD_PATH / mod.filename) + ".zip"
 
-    def get_mod_to_extract_path(self, mod: ModInfo) -> str:
+    def _get_mod_to_extract_path(self, mod: ModInfo) -> str:
+
         return str(Path(self._config.download_path) / mod.filename)
 
     ############################################################################
