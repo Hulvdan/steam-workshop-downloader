@@ -5,7 +5,6 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Set
-from urllib import parse
 from zipfile import ZipFile
 
 import aiofiles
@@ -14,6 +13,7 @@ from bs4 import BeautifulSoup
 
 from .list_config import Config
 from .logging import logger
+from .utils import get_mod_id_from_url
 
 
 @dataclass
@@ -60,14 +60,9 @@ class Downloader:
         if os.path.exists(TEMP_DOWNLOAD_PATH):
             shutil.rmtree(TEMP_DOWNLOAD_PATH)
 
-    def _get_mod_id_from_url(self, mod_url: str) -> int:
-        parsed_url = parse.urlparse(mod_url)
-        qs = parse.parse_qs(parsed_url.query)
-        return int(qs["id"][0])
-
     @property
     def mod_ids(self) -> List[int]:
-        return [self._get_mod_id_from_url(mod) for mod in self._config.mods]
+        return [get_mod_id_from_url(mod) for mod in self._config.mods]
 
     async def run(self) -> None:
         logger.info("%s: Получение id'шников модов..." % self._config.name)
