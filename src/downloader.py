@@ -119,7 +119,7 @@ class Downloader:
 
     async def run(self) -> None:
         """Запуск загрузчика."""
-        logger.info("%s: Получение названий модов..." % self._config.name)
+        logger.info("%s: Получение информации о модах..." % self._config.name)
         mod_infos: List[ModInfo] = await asyncio.gather(
             *[self._get_mod_info(mod_id) for mod_id in self._config.mods]
         )
