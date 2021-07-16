@@ -1,10 +1,10 @@
-from typing import Union
+from typing import Any
 from urllib import parse
 
 from .logging import logger
 
 
-def get_mod_id_from_url(mod_url: Union[str, int]) -> int:
+def get_mod_id_from_url(mod_url: Any) -> int:
     """Получение ID мода из конфига."""
     if isinstance(mod_url, int):
         return mod_url

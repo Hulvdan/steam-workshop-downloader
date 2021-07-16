@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List, Optional, Set, TypedDict, Union
 
 import yaml
-from schema import And, Or, Schema, SchemaError, Use
+from schema import And, Schema, SchemaError, Use
 
 from .logging import logger
 from .utils import get_mod_id_from_url
@@ -31,10 +31,19 @@ config_validation_schema = Schema(
 )
 
 
-def get_configs(directory_path: str = "config") -> List[GameConfig]:
+def get_configs(dir_path: str = "configs") -> List[GameConfig]:
+    """Загрузка конфигов из папки.
+
+    Args:
+        dir_path: Папка, в которой находятся конфиги. Расширение должно быть yml
+            или yaml.
+
+    Returns:
+        Список загруженных конфигов.
+    """
     logger.info("Чтение конфигов...")
     configs: List[GameConfig] = []
-    path = Path(directory_path)
+    path = Path(dir_path)
     for file_path in os.listdir(path):
         if os.path.isfile(path / file_path):
             file_splitted = os.path.splitext(path / file_path)
@@ -44,7 +53,7 @@ def get_configs(directory_path: str = "config") -> List[GameConfig]:
                     continue
                 logger.info("Найден конфиг '%s'" % cfg_name)
                 cfg = _get_config(path / file_path, cfg_name)
-                if cfg:
+                if cfg is not None:
                     configs.append(cfg)
     return configs
 
@@ -52,6 +61,7 @@ def get_configs(directory_path: str = "config") -> List[GameConfig]:
 def _get_config(
     filepath: Union[str, os.PathLike], cfg_name: str
 ) -> Optional[GameConfig]:
+    """Подгрузка конфига из файла и валидация."""
     with open(filepath) as cfg_file:
         cfg_data: GameConfigDict = yaml.safe_load(cfg_file)
 

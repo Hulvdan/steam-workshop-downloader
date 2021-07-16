@@ -3,7 +3,7 @@ from typing import List
 import requests
 from bs4 import BeautifulSoup
 
-from src.logging import logger
+from .logging import logger
 
 
 def validate_mod_ids(mod_ids: List[int]) -> bool:
@@ -31,7 +31,7 @@ def _validate_mod_id(mod_id: int) -> bool:
     идёт поиск элемента `div` с классом `error_ctn` - это карта, на которой
     отображается ошибка.
 
-    Params:
+    Args:
         mod_id: ID мода.
 
     Returns:

@@ -1,16 +1,19 @@
 import asyncio
 import json
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Set
+from typing import Dict, List, Optional, Set
 from zipfile import ZipFile
 
 import aiofiles
 import aiohttp
 from bs4 import BeautifulSoup
 
+from .cache import dump_cache, load_cache
 from .config import (
+    CACHE_DIR,
     CHECK_STATUS_INTERVAL,
     DOWNLOAD_CHUNK_SIZE,
     TEMP_DOWNLOAD_PATH,
@@ -28,6 +31,7 @@ class ModInfo:
 
     name: str
     mod_id: int
+    last_update_date: str
     request_uuid: Optional[str] = None
 
     @property
@@ -53,9 +57,6 @@ class ModInfo:
 class Downloader:
     """Загрузчик модов конфигурации игры."""
 
-    #: Количество работающих на данный момент загрузчиков.
-    count = 0
-
     def __init__(self, config: GameConfig) -> None:
         """Создание загрузчика.
 
@@ -63,35 +64,65 @@ class Downloader:
             config: Конфигурация игры.
         """
         self._config = config
+        self._last_mod_update_cache: Dict[str, str] = {}
+        if not os.path.exists(CACHE_DIR):
+            os.mkdir(CACHE_DIR)
+        self._cache = load_cache(self._cache_file_path)
+
+    @property
+    def _cache_file_path(self) -> str:
+        return str(CACHE_DIR / self._config.name) + ".json"
 
     async def run(self) -> None:
         """Запуск загрузчика."""
-        # mod_infos_pool = [
-        #     self._get_mod_info(mod_id) for mod_id in self._config.mods
-        # ]
-        # logger.info("%s: Получение названий модов..." % self._config.name)
-        # mod_infos = await asyncio.gather(*mod_infos_pool)
+        logger.info("%s: Получение названий модов..." % self._config.name)
+        mod_infos: List[ModInfo] = await asyncio.gather(
+            *[self._get_mod_info(mod_id) for mod_id in self._config.mods]
+        )
 
-        # lock = asyncio.Lock()
-        # mod_infos_with_uuids: Set[ModInfo] = set()
-        # mod_request_pool = [
-        #     self._make_request(mod_info, mod_infos_with_uuids, lock)
-        #     for mod_info in mod_infos
-        # ]
-        # await asyncio.wait(mod_request_pool)
+        mod_infos_for_downloading: List[ModInfo] = []
+        for mod_info in mod_infos:
+            if self._cache.get(mod_info.mod_id, None) is None:
+                logger.warning(
+                    "В кеше не найдена дата скачивания мода '%s'"
+                    % mod_info.name
+                )
+            cached_last_update_date: Optional[str] = self._cache.get(
+                mod_info.mod_id, {}
+            ).get("last_update_date", None)
+            mod_is_outdated = (
+                cached_last_update_date != mod_info.last_update_date
+            )
+            if mod_is_outdated:
+                logger.info("Мод будет скачан заново '%s'" % mod_info.name)
+                mod_infos_for_downloading.append(mod_info)
+                self._cache[mod_info.mod_id] = {
+                    "last_update_date": mod_info.last_update_date
+                }
+            else:
+                logger.info("'%s' установлен последней версии" % mod_info.name)
 
-        # await asyncio.sleep(2)
-        # completed_mods: Set[ModInfo] = set()
-        # while len(mod_infos_with_uuids) > 0:
-        #     completed_mods |= await self._check_status(mod_infos_with_uuids)
-        #     mod_infos_with_uuids -= completed_mods
-        #     await asyncio.sleep(CHECK_STATUS_INTERVAL)
+        lock = asyncio.Lock()
+        mod_infos_with_uuids: Set[ModInfo] = set()
+        mod_request_pool = [
+            self._make_request(mod_info, mod_infos_with_uuids, lock)
+            for mod_info in mod_infos_for_downloading
+        ]
+        await asyncio.wait(mod_request_pool)
 
-        # downloaded_mods = await asyncio.gather(
-        #     *[self._stream_download(mod) for mod in completed_mods]
-        # )
+        await asyncio.sleep(2)
+        completed_mods: Set[ModInfo] = set()
+        while len(mod_infos_with_uuids) > 0:
+            completed_mods |= await self._check_status(mod_infos_with_uuids)
+            mod_infos_with_uuids -= completed_mods
+            await asyncio.sleep(CHECK_STATUS_INTERVAL)
 
-        # self._extract_mods(downloaded_mods)
+        downloaded_mods = await asyncio.gather(
+            *[self._stream_download(mod) for mod in completed_mods]
+        )
+
+        self._extract_mods(downloaded_mods)
+        dump_cache(self._cache, self._cache_file_path)
 
     async def _get_mod_info(self, item_id: int) -> ModInfo:
         """Получение информации о моде по его ID, а конкретно - его название.
@@ -100,7 +131,7 @@ class Downloader:
             item_id: ID мода.
 
         Raises:
-            ValueError: [description]
+            ValueError: Ошибка получения информации о моде.
 
         Returns:
             Информация о моде.
@@ -125,7 +156,16 @@ class Downloader:
 
         item_name: str = title_elem.attrs["title"]
 
-        return ModInfo(item_name, item_id)
+        last_update_elem = soup.find("div", "short-story")
+        try:
+            last_update_match = re.search("Update:.*", last_update_elem.text)
+            last_update = last_update_match[0][8:]  # type: ignore
+        except IndexError:
+            raise ValueError(
+                "Не удалость получить дату последнего обновления мода"
+            )
+
+        return ModInfo(item_name, item_id, last_update)
 
     # Нельзя быстро получить много названий с оф сайта, не используя API
     # async def _get_mod_info(self, item_id: int) -> ModInfo:

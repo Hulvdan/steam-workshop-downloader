@@ -2,6 +2,7 @@ import asyncio
 import os
 import shutil
 
+from PyInquirer import prompt
 from src.config import TEMP_DOWNLOAD_PATH
 from src.downloader import Downloader
 from src.game_cfg import get_configs
@@ -21,10 +22,25 @@ def clean_temp_dir() -> None:
         shutil.rmtree(TEMP_DOWNLOAD_PATH)
 
 
-if __name__ == "__main__":
+def download_mods() -> None:
     remake_temp_dir()
     configs = get_configs()
-    downloaders = [Downloader(cfg) for cfg in configs]
+
+    selected_configs = []
+    questions = [
+        {
+            "type": "checkbox",
+            "name": "selected_configs",
+            "message": "Выберите конфиги:",
+            "choices": [{"name": config.name} for config in configs],
+        }
+    ]
+    answers = prompt(questions)
+    selected_configs = list(
+        filter(lambda cfg: cfg.name in answers["selected_configs"], configs)
+    )
+
+    downloaders = [Downloader(cfg) for cfg in selected_configs]
 
     loop = asyncio.get_event_loop()
     pool = [downloader.run() for downloader in downloaders]
@@ -33,3 +49,11 @@ if __name__ == "__main__":
 
     clean_temp_dir()
     logger.info("Завершено!")
+
+
+def main() -> None:
+    download_mods()
+
+
+if __name__ == "__main__":
+    main()
