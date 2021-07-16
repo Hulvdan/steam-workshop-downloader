@@ -340,7 +340,6 @@ class Downloader:
 
             from_filepath = self._get_mod_temporary_download_path(mod)
             to_filepath = self._get_mod_to_extract_path(mod)
-            # print(from_filepath, to_filepath)
             with ZipFile(from_filepath, "r") as archive:
                 archive.extractall(to_filepath)
 

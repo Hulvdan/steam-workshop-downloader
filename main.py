@@ -27,12 +27,17 @@ def download_mods() -> None:
     configs = get_configs()
 
     selected_configs = []
+    selectable_configs = [{"name": config.name} for config in configs]
+    if len(selectable_configs) == 0:
+        print("Не было найдено конфигураций. Создайте новую")
+        return
+
     questions = [
         {
             "type": "checkbox",
             "name": "selected_configs",
             "message": "Выберите конфиги:",
-            "choices": [{"name": config.name} for config in configs],
+            "choices": selectable_configs,
         }
     ]
     answers = prompt(questions)
