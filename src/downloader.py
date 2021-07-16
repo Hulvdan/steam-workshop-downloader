@@ -48,7 +48,7 @@ class ModInfo:
         """
         parts = [str(self.mod_id), *self.name.split(" ")]
         joined_parts = "_".join(parts).lower()
-        return "".join(re.findall("[a-zA-Z0-9_]+", joined_parts))
+        return "".join(re.findall("[a-zA-Z0-9_\-'.]+", joined_parts))
 
     def __hash__(self) -> int:
         """Хеширование по ID мода."""
@@ -96,7 +96,7 @@ class Downloader:
         # Проверка на то, что мод находится в установочном пути
         if mod.filename not in self._list_mods_in_cfg_download_path():
             self._cache[mod.mod_id] = {"last_update_date": mod.last_update_date}
-            logger.info("Мод '%s' не был найден в пути установки." % mod.name)
+            logger.info("Мод '%s' не был установлен ранее." % mod.name)
             return True
 
         # Проверка на наличие кешированных данных о моде
@@ -145,6 +145,7 @@ class Downloader:
             mod_infos_with_uuids -= completed_mods
             await asyncio.sleep(CHECK_STATUS_INTERVAL)
 
+        logger.info("Все моды были скачаны на сервере!")
         downloaded_mods = await asyncio.gather(
             *[self._stream_download(mod) for mod in completed_mods]
         )

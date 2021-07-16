@@ -62,7 +62,7 @@ def _get_config(
     filepath: Union[str, os.PathLike], cfg_name: str
 ) -> Optional[GameConfig]:
     """Подгрузка конфига из файла и валидация."""
-    with open(filepath) as cfg_file:
+    with open(filepath, encoding='utf-8') as cfg_file:
         cfg_data: GameConfigDict = yaml.safe_load(cfg_file)
 
     try:

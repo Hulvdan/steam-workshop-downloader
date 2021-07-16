@@ -17,20 +17,49 @@ Workshop и затем автоматически распаковывать а�
 ```yml
 download_path: c:\Users\pepe\Documents\My Games\Sid Meier's Civilization VI\Mods
 mods:
-  - 2266952591 # Extended Policy Cards
-  - 873246701 # Better Trade Screen
-  - 882664162 # Unique District Icons
-  - 911395113 # Good Goody Huts
-  - 939149009 # Sukritact's Simple UI Adjustments
-  - 1312585482 # Better Report Screen (UI)
-  - 1431485535 # Fast Dynamic Timer
   - 1601259406 # Enhanced Mod Manager
-  - 1658551717 # Quick Start
-  - 1679150838 # Colorized Historic Moments
-  - 1916397407 # Better Spectator Mod (BSM)
-  - 1947948094 # HotFixes
-  - 1958135962 # Better Balanced Starts (BBS)
+
+  # UI
+  - 2471091953 # Diplomacy Compatibility Patch
+
+  - 1360462633 # Extended Diplomacy Ribbon
+  - 873246701 # Better Trade Screen
+  - 872296228 # Better Espionage Screen
+  - 1312585482 # Better Report Screen (UI)
+  - 2114277246 # Better Climate Screen (UI)
+  - 2139486665 # Better World Rankings (UI)
+  - 2495851756 # Better City States (UI)
+  - 2460661464 # Quick Deals
+  - 939149009 # Sukritact's Simple UI Adjustments
   - 2115302648 # CQUI - Community Quick User Interface
+
+  - 2266952591 # Extended Policy Cards
+  - 2428969051 # Detailed Map Tacks
+
+  - 1679150838 # Colorized Historic Moments
+  - 882664162 # Unique District Icons
+
+  # Gameplay
+  - 911395113 # Good Goody Huts
+  - 1958135962 # Better Balanced Starts (BBS)
+  - 1947948094 # HotFixes
+  # (Real Tech Tree) Есть опциональная настройка: Governments
+  # https://steamcommunity.com/sharedfiles/filedetails/?id=871465857
+  - 871465857 # Real Tech Tree
+  - 875009475 # Real Science Pace
+  # (Real Era Stop) Do NOT use "No turn limit" option when setting up a game.
+  # It will make the game progress to the era past the last one causing issues
+  # with World Congress.
+  # If you want to play longer, use custom turn limit
+  # and set it to e.g. 1000 or bigger.
+  - 880843004 # Real Era Stop
+
+  # Multiplayer
+  - 1431485535 # Fast Dynamic Timer
+
+  # Other
+  - 1916397407 # Better Spectator Mod (BSM)
+  - 1658551717 # Quick Start
 ```
 
 *__Примечание:__ как указано в файле `config/example.yml`, можно
@@ -50,7 +79,8 @@ mods:
 
 ```bash
 poetry install --no-dev
-poetry run main.py
+poetry shell
+python main.py
 ```
 
 Программа пройдётся по всем файлам в папке `config/`, скачает указанные моды в
