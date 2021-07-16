@@ -3,6 +3,7 @@ import json
 import os
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 from zipfile import ZipFile
@@ -11,7 +12,7 @@ import aiofiles
 import aiohttp
 from bs4 import BeautifulSoup
 
-from .cache import dump_cache, load_cache
+from .cache import ModCache, dump_cache, load_cache
 from .config import (
     CACHE_DIR,
     CHECK_STATUS_INTERVAL,
@@ -69,9 +70,44 @@ class Downloader:
             os.mkdir(CACHE_DIR)
         self._cache = load_cache(self._cache_file_path)
 
+    @lru_cache(1)
+    def _list_mods_in_cfg_download_path(self) -> Set[str]:
+        mods = filter(
+            lambda path: os.path.isdir(
+                os.path.join(self._config.download_path, path)
+            ),
+            os.listdir(self._config.download_path),
+        )
+        return set(mods)
+
     @property
     def _cache_file_path(self) -> str:
         return str(CACHE_DIR / self._config.name) + ".json"
+
+    def _mod_has_to_be_redownloaded(self, mod: ModInfo) -> bool:
+        # Проверка на то, что мод находится в установочном пути
+        if mod.filename not in self._list_mods_in_cfg_download_path():
+            self._cache[mod.mod_id] = {"last_update_date": mod.last_update_date}
+            logger.info("Мод '%s' не был найден в пути установки." % mod.name)
+            return True
+
+        # Проверка на наличие кешированных данных о моде
+        cached_mod_data: Optional[ModCache] = self._cache.get(mod.mod_id, None)
+        if self._cache.get(mod.mod_id, None) is None:
+            self._cache[mod.mod_id] = {"last_update_date": mod.last_update_date}
+            logger.warning("В кеше не найдены данные мода '%s'" % mod.name)
+            return True
+
+        # Проверка на соответствие даты последнего обновления мода
+        cached_last_update_date: str = cached_mod_data["last_update_date"]
+        mod_is_outdated = cached_last_update_date != mod.last_update_date
+        if mod_is_outdated:
+            logger.info("Мод '%s' будет скачан заново" % mod.name)
+            self._cache[mod.mod_id] = {"last_update_date": mod.last_update_date}
+            return True
+
+        logger.info("Мод '%s' установлен последней версии" % mod.name)
+        return False
 
     async def run(self) -> None:
         """Запуск загрузчика."""
@@ -80,27 +116,11 @@ class Downloader:
             *[self._get_mod_info(mod_id) for mod_id in self._config.mods]
         )
 
-        mod_infos_for_downloading: List[ModInfo] = []
-        for mod_info in mod_infos:
-            if self._cache.get(mod_info.mod_id, None) is None:
-                logger.warning(
-                    "В кеше не найдена дата скачивания мода '%s'"
-                    % mod_info.name
-                )
-            cached_last_update_date: Optional[str] = self._cache.get(
-                mod_info.mod_id, {}
-            ).get("last_update_date", None)
-            mod_is_outdated = (
-                cached_last_update_date != mod_info.last_update_date
-            )
-            if mod_is_outdated:
-                logger.info("Мод будет скачан заново '%s'" % mod_info.name)
-                mod_infos_for_downloading.append(mod_info)
-                self._cache[mod_info.mod_id] = {
-                    "last_update_date": mod_info.last_update_date
-                }
-            else:
-                logger.info("'%s' установлен последней версии" % mod_info.name)
+        mod_infos_for_downloading: List[ModInfo] = list(
+            filter(lambda mod: self._mod_has_to_be_redownloaded(mod), mod_infos)
+        )
+        if len(mod_infos_for_downloading) == 0:
+            return
 
         lock = asyncio.Lock()
         mod_infos_with_uuids: Set[ModInfo] = set()

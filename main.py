@@ -41,6 +41,11 @@ def download_mods() -> None:
     )
 
     downloaders = [Downloader(cfg) for cfg in selected_configs]
+    if len(downloaders) == 0:
+        logger.info(
+            "Никакой конфигурации выбрано не было. Завершение программы"
+        )
+        return
 
     loop = asyncio.get_event_loop()
     pool = [downloader.run() for downloader in downloaders]

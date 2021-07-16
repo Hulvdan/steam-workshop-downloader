@@ -2,7 +2,7 @@ import json
 import os
 from typing import Dict, TypedDict, Union
 
-from schema import And, Schema, SchemaError
+from schema import And, Schema, SchemaError, Use
 
 from .logging import logger
 
@@ -13,7 +13,7 @@ class ModCache(TypedDict):
     last_update_date: str
 
 
-cache_schema = Schema({"last_update_date": And(str, len)})
+cache_schema = Schema({Use(int): {"last_update_date": And(str, len)}})
 
 
 def load_cache(path: Union[str, os.PathLike]) -> Dict[int, ModCache]:
@@ -51,4 +51,4 @@ def dump_cache(
     """
     logger.info("Кеширование '%s'" % path)
     with open(path, "w") as cache_file:
-        json.dump(cache, cache_file)
+        json.dump(cache, cache_file, indent=4, sort_keys=True)
