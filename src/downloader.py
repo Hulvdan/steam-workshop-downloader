@@ -72,6 +72,14 @@ class Downloader:
 
     @lru_cache(1)
     def _list_mods_in_cfg_download_path(self) -> Set[str]:
+        # Проверка на наличие папки и создание в случае её отсутствия
+        if not os.path.exists(self._config.download_path):
+            logger.warning(
+                "Папка '%s' отсутствует. Она будет создана"
+                % self._config.download_path
+            )
+            os.mkdir(self._config.download_path)
+        # Список установленных модов в этой папке
         mods = filter(
             lambda path: os.path.isdir(
                 os.path.join(self._config.download_path, path)
