@@ -118,7 +118,7 @@ class Downloader:
     async def run(self) -> None:
         """Запуск загрузчика."""
         console.print(
-            "%s: Получение информации о модах..." % self._config.name,
+            "%s: Получение информации о модах" % self._config.name,
             style="info",
         )
         mod_infos: List[ModInfo] = await asyncio.gather(
@@ -307,7 +307,7 @@ class Downloader:
         #     "downloadError": "never transmitted"
         #   }
         # }
-        console.print("Проверка статуса файлов...", style="debug")
+        console.print("Проверка статуса запросов на скачивание", style="debug")
         request_url = "https://backend-03-prd.steamworkshopdownloader.io/api/download/status"
         data = {"uuids": [mod.request_uuid for mod in mods]}
         data_dumped = json.dumps(data)
@@ -349,7 +349,7 @@ class Downloader:
             "https://backend-03-prd.steamworkshopdownloader.io/api/download/transmit?uuid=%s"
             % mod.request_uuid
         )
-        console.print("Скачивание '%s'..." % mod.name, style="debug")
+        console.print("Скачивание '%s'" % mod.name, style="debug")
         async with aiohttp.ClientSession() as session:
             response = await session.get(request_url)
 
