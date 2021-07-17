@@ -31,7 +31,8 @@ jobs:
         pytest
     - name: Build Application
       run: |
-        python setup.py py2exe
+        python setup.py py2exe -d steam-workshop-downloader
+        python -m zipfile -c steam-workshop-downloader.zip steam-workshop-downloader/
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
@@ -39,4 +40,4 @@ jobs:
         prerelease: false
         title: "Development Build"
         files: |
-          dist
+          steam-workshop-downloader.zip
