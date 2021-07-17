@@ -6,7 +6,7 @@ from PyInquirer import prompt
 from src.config import TEMP_DOWNLOAD_PATH
 from src.downloader import Downloader
 from src.game_cfg import get_configs
-from src.logging import logger
+from src.logging import console
 
 
 def remake_temp_dir() -> None:
@@ -23,16 +23,24 @@ def clean_temp_dir() -> None:
 
 
 def download_mods() -> None:
+    console.print(
+        "steam-workshop-downloader", style="black on yellow", justify="center"
+    )
     remake_temp_dir()
     configs = get_configs()
 
     selected_configs = []
+    selectable_configs = [{"name": config.name} for config in configs]
+    if len(selectable_configs) == 0:
+        console.print("Не найдено конфигураций. Создайте новую")
+        return
+
     questions = [
         {
             "type": "checkbox",
             "name": "selected_configs",
             "message": "Выберите конфиги:",
-            "choices": [{"name": config.name} for config in configs],
+            "choices": selectable_configs,
         }
     ]
     answers = prompt(questions)
@@ -42,7 +50,7 @@ def download_mods() -> None:
 
     downloaders = [Downloader(cfg) for cfg in selected_configs]
     if len(downloaders) == 0:
-        logger.info(
+        console.print(
             "Никакой конфигурации выбрано не было. Завершение программы"
         )
         return
@@ -53,7 +61,7 @@ def download_mods() -> None:
     loop.close()
 
     clean_temp_dir()
-    logger.info("Завершено!")
+    console.print("Завершено!")
 
 
 def main() -> None:

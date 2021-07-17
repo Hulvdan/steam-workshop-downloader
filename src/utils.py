@@ -1,7 +1,7 @@
 from typing import Any
 from urllib import parse
 
-from .logging import logger
+from .logging import console
 
 
 def get_mod_id_from_url(mod_url: Any) -> int:
@@ -11,7 +11,7 @@ def get_mod_id_from_url(mod_url: Any) -> int:
 
     if not isinstance(mod_url, str):
         msg = "Это не строка: '%s'" % mod_url
-        logger.error(msg)
+        console.print(msg, style="error")
         raise ValueError(msg)
 
     if mod_url.isdecimal():
@@ -23,5 +23,5 @@ def get_mod_id_from_url(mod_url: Any) -> int:
         return int(qs["id"][0])
     except KeyError:
         msg = "Невозможно получить ID из '%s'" % mod_url
-        logger.error(msg)
+        console.print(msg, style="error")
         raise ValueError(msg)
