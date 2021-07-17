@@ -51,7 +51,8 @@ def download_mods() -> None:
     downloaders = [Downloader(cfg) for cfg in selected_configs]
     if len(downloaders) == 0:
         console.print(
-            "Никакой конфигурации выбрано не было. Завершение программы"
+            "Никакой конфигурации выбрано не было. Завершение программы",
+            style="warning",
         )
         return
 
@@ -61,7 +62,7 @@ def download_mods() -> None:
     loop.close()
 
     clean_temp_dir()
-    console.print("Завершено!")
+    console.print("Завершено!", style="info")
 
 
 def main() -> None:

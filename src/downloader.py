@@ -117,10 +117,7 @@ class Downloader:
 
     async def run(self) -> None:
         """Запуск загрузчика."""
-        console.print(
-            "%s: Получение информации о модах" % self._config.name,
-            style="info",
-        )
+        console.print("Получение информации о модах", style="info")
         mod_infos: List[ModInfo] = await asyncio.gather(
             *[self._get_mod_info(mod_id) for mod_id in self._config.mods]
         )
@@ -333,7 +330,8 @@ class Downloader:
                 )
                 completed_mods.add(completed_mod)
                 console.print(
-                    "Закончено скачивание на сервере '%s'" % completed_mod.name,
+                    "Закончено скачивание на сервере [cyan]'%s'"
+                    % completed_mod.name,
                     style="debug",
                 )
 
@@ -349,7 +347,7 @@ class Downloader:
             "https://backend-03-prd.steamworkshopdownloader.io/api/download/transmit?uuid=%s"
             % mod.request_uuid
         )
-        console.print("Скачивание '%s'" % mod.name, style="debug")
+        console.print("Скачивание [cyan]'%s'" % mod.name, style="debug")
         async with aiohttp.ClientSession() as session:
             response = await session.get(request_url)
 
@@ -359,15 +357,18 @@ class Downloader:
                     content = await response.content.read(DOWNLOAD_CHUNK_SIZE)
                     await out_file.write(content)
 
-        console.print("Завершено скачивание '%s'" % mod.name, style="debug")
+        console.print(
+            "Завершено скачивание [cyan]'%s'" % mod.name, style="debug"
+        )
         return mod
 
     def _extract_mods(self, downloaded_mods: List[ModInfo]) -> None:
         console.print(
-            "Распаковка модов в '%s'" % self._config.download_path, style="info"
+            "Распаковка модов в [cyan]'%s'" % self._config.download_path,
+            style="info",
         )
         for mod in downloaded_mods:
-            console.print("Распаковка '%s'" % mod.name, style="debug")
+            console.print("Распаковка [cyan]'%s'" % mod.name, style="debug")
 
             from_filepath = self._get_mod_temporary_download_path(mod)
             to_filepath = self._get_mod_to_extract_path(mod)

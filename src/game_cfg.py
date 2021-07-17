@@ -41,7 +41,7 @@ def get_configs(dir_path: str = "configs/") -> List[GameConfig]:
     Returns:
         Список загруженных конфигов.
     """
-    console.print("Чтение конфигов в '%s'" % dir_path, style="info")
+    console.print("Чтение конфигов в [cyan]'%s'" % dir_path, style="info")
     configs: List[GameConfig] = []
     path = Path(dir_path)
     for file_path in os.listdir(path):
@@ -52,7 +52,8 @@ def get_configs(dir_path: str = "configs/") -> List[GameConfig]:
                 if cfg_name == "example":
                     continue
                 console.print(
-                    "Найден конфиг '%s'" % (cfg_name + file_splitted[1])
+                    "Найден конфиг [cyan]'%s'" % (cfg_name + file_splitted[1]),
+                    style="debug",
                 )
                 cfg = _get_config(path / file_path, cfg_name)
                 if cfg is not None:
