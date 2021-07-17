@@ -5,12 +5,13 @@ import re
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 from zipfile import ZipFile
 
 import aiofiles
 import aiohttp
 from bs4 import BeautifulSoup
+from rich.table import Table
 
 from .cache import ModCache, dump_cache, load_cache
 from .config import (
@@ -74,9 +75,10 @@ class Downloader:
     def _list_mods_in_cfg_download_path(self) -> Set[str]:
         # Проверка на наличие папки и создание в случае её отсутствия
         if not os.path.exists(self._config.download_path):
-            logger.warning(
+            console.print(
                 "Папка '%s' отсутствует. Она будет создана"
-                % self._config.download_path
+                % self._config.download_path,
+                style="warning",
             )
             os.mkdir(self._config.download_path)
         # Список установленных модов в этой папке
@@ -92,39 +94,26 @@ class Downloader:
     def _cache_file_path(self) -> str:
         return str(CACHE_DIR / self._config.name) + ".json"
 
-    def _mod_has_to_be_redownloaded(self, mod: ModInfo) -> bool:
+    def _mod_has_to_be_redownloaded(self, mod: ModInfo) -> Tuple[bool, str]:
         # Проверка на то, что мод находится в установочном пути
         if mod.filename not in self._list_mods_in_cfg_download_path():
             self._cache[mod.mod_id] = {"last_update_date": mod.last_update_date}
-            console.print(
-                "Мод '%s' не был установлен ранее" % mod.name,
-                style="warning",
-            )
-            return True
+            return (True, "Не был установлен ранее")
 
         # Проверка на наличие кешированных данных о моде
         cached_mod_data: Optional[ModCache] = self._cache.get(mod.mod_id, None)
         if self._cache.get(mod.mod_id, None) is None:
             self._cache[mod.mod_id] = {"last_update_date": mod.last_update_date}
-            console.print(
-                "В кеше не найдены данные мода '%s'" % mod.name, style="warning"
-            )
-            return True
+            return (True, "В кеше не найдены данные")
 
         # Проверка на соответствие даты последнего обновления мода
         cached_last_update_date: str = cached_mod_data["last_update_date"]
         mod_is_outdated = cached_last_update_date != mod.last_update_date
         if mod_is_outdated:
-            console.print(
-                "Вышло новое обновление мода '%s'" % mod.name, style="info"
-            )
             self._cache[mod.mod_id] = {"last_update_date": mod.last_update_date}
-            return True
+            return (True, "Вышло новое обновление")
 
-        console.print(
-            "Мод '%s' установлен последней версии" % mod.name, style="info"
-        )
-        return False
+        return (False, "Последняя версия")
 
     async def run(self) -> None:
         """Запуск загрузчика."""
@@ -136,12 +125,29 @@ class Downloader:
             *[self._get_mod_info(mod_id) for mod_id in self._config.mods]
         )
 
-        mod_infos_for_downloading: List[ModInfo] = list(
-            filter(lambda mod: self._mod_has_to_be_redownloaded(mod), mod_infos)
-        )
+        mods_and_download_reasons: List[Tuple[bool, str]] = [
+            self._mod_has_to_be_redownloaded(mod) for mod in mod_infos
+        ]
+        mod_infos_for_downloading: List[ModInfo] = []
+        table = Table()
+        table.add_column("Мод")
+        table.add_column("Описание")
+
+        for mod, reason in sorted(
+            zip(mod_infos, mods_and_download_reasons),
+            key=lambda item: item[0].name,
+        ):
+            if reason[0]:
+                mod_infos_for_downloading.append(mod)
+                table.add_row(mod.name, reason[1], style="warning")
+            else:
+                table.add_row(mod.name, reason[1], style="info")
+        console.print(table)
         if len(mod_infos_for_downloading) == 0:
+            console.print("Все моды установлены последней версии", style="info")
             return
 
+        console.print("Создание запросов на скачивание модов", style="info")
         lock = asyncio.Lock()
         mod_infos_with_uuids: Set[ModInfo] = set()
         mod_request_pool = [
@@ -157,7 +163,7 @@ class Downloader:
             mod_infos_with_uuids -= completed_mods
             await asyncio.sleep(CHECK_STATUS_INTERVAL)
 
-        logger.info("Все моды были скачаны на сервере!")
+        console.print("Все моды были скачаны на сервере!", style="info")
         downloaded_mods = await asyncio.gather(
             *[self._stream_download(mod) for mod in completed_mods]
         )
@@ -301,7 +307,7 @@ class Downloader:
         #     "downloadError": "never transmitted"
         #   }
         # }
-        console.print("Проверка статуса файлов...", style="info")
+        console.print("Проверка статуса файлов...", style="debug")
         request_url = "https://backend-03-prd.steamworkshopdownloader.io/api/download/status"
         data = {"uuids": [mod.request_uuid for mod in mods]}
         data_dumped = json.dumps(data)
@@ -328,7 +334,7 @@ class Downloader:
                 completed_mods.add(completed_mod)
                 console.print(
                     "Закончено скачивание на сервере '%s'" % completed_mod.name,
-                    style="info",
+                    style="debug",
                 )
 
         return completed_mods
@@ -343,7 +349,7 @@ class Downloader:
             "https://backend-03-prd.steamworkshopdownloader.io/api/download/transmit?uuid=%s"
             % mod.request_uuid
         )
-        console.print("Скачивание '%s'..." % mod.name, style="info")
+        console.print("Скачивание '%s'..." % mod.name, style="debug")
         async with aiohttp.ClientSession() as session:
             response = await session.get(request_url)
 
@@ -353,7 +359,7 @@ class Downloader:
                     content = await response.content.read(DOWNLOAD_CHUNK_SIZE)
                     await out_file.write(content)
 
-        console.print("Завершено скачивание '%s'" % mod.name, style="info")
+        console.print("Завершено скачивание '%s'" % mod.name, style="debug")
         return mod
 
     def _extract_mods(self, downloaded_mods: List[ModInfo]) -> None:
@@ -361,7 +367,7 @@ class Downloader:
             "Распаковка модов в '%s'" % self._config.download_path, style="info"
         )
         for mod in downloaded_mods:
-            console.print("Распаковка '%s'" % mod.name, style="info")
+            console.print("Распаковка '%s'" % mod.name, style="debug")
 
             from_filepath = self._get_mod_temporary_download_path(mod)
             to_filepath = self._get_mod_to_extract_path(mod)
