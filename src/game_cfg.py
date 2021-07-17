@@ -6,7 +6,7 @@ from typing import List, Optional, Set, TypedDict, Union
 import yaml
 from schema import And, Schema, SchemaError, Use
 
-from .logging import logger
+from .logging import console
 from .utils import get_mod_id_from_url
 
 
@@ -31,7 +31,7 @@ config_validation_schema = Schema(
 )
 
 
-def get_configs(dir_path: str = "configs") -> List[GameConfig]:
+def get_configs(dir_path: str = "configs/") -> List[GameConfig]:
     """Загрузка конфигов из папки.
 
     Args:
@@ -41,7 +41,7 @@ def get_configs(dir_path: str = "configs") -> List[GameConfig]:
     Returns:
         Список загруженных конфигов.
     """
-    logger.info("Чтение конфигов...")
+    console.print("Чтение конфигов в '%s'" % dir_path, style="info")
     configs: List[GameConfig] = []
     path = Path(dir_path)
     for file_path in os.listdir(path):
@@ -51,7 +51,9 @@ def get_configs(dir_path: str = "configs") -> List[GameConfig]:
                 cfg_name = os.path.splitext(file_path)[0]
                 if cfg_name == "example":
                     continue
-                logger.info("Найден конфиг '%s'" % cfg_name)
+                console.print(
+                    "Найден конфиг '%s'" % (cfg_name + file_splitted[1])
+                )
                 cfg = _get_config(path / file_path, cfg_name)
                 if cfg is not None:
                     configs.append(cfg)
@@ -62,19 +64,21 @@ def _get_config(
     filepath: Union[str, os.PathLike], cfg_name: str
 ) -> Optional[GameConfig]:
     """Подгрузка конфига из файла и валидация."""
-    with open(filepath, encoding='utf-8') as cfg_file:
+    with open(filepath, encoding="utf-8") as cfg_file:
         cfg_data: GameConfigDict = yaml.safe_load(cfg_file)
 
     try:
         cfg_data = config_validation_schema.validate(cfg_data)
     except SchemaError as err:
-        logger.error("Конфиг '%s' неверный! %s" % (cfg_name, err))
+        console.print(
+            "Конфиг '%s' неверный! %s" % (cfg_name, err), style="error"
+        )
         return None
 
     unique_mods: Set[int] = set()
     for mod in cfg_data["mods"]:
         if mod in unique_mods:
-            logger.warning("Найден дубликат мода: %s" % mod)
+            console.print("Обнаружен дубликат мода: %s" % mod, style="warning")
             continue
         unique_mods.add(mod)
 

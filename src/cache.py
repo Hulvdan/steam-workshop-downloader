@@ -4,7 +4,7 @@ from typing import Dict, TypedDict, Union
 
 from schema import And, Schema, SchemaError, Use
 
-from .logging import logger
+from .logging import console
 
 
 class ModCache(TypedDict):
@@ -26,16 +26,19 @@ def load_cache(path: Union[str, os.PathLike]) -> Dict[int, ModCache]:
         Кеш.
     """
     if not os.path.exists(path):
-        logger.info("Кеш отсутствует. Все моды будут заново скачаны")
+        console.print(
+            "Кеш отсутствует. Все моды будут заново скачаны", style="warning"
+        )
         return {}
-    logger.info("Загрузка кеша '%s'" % path)
+    console.print("Загрузка кеша '%s'" % path, style="info")
     with open(path) as cache_file:
         cache = json.load(cache_file)
     try:
         return cache_schema.validate(cache)
     except SchemaError as err:
-        logger.warning(
-            "Кеш не валиден. Все моды будут заново скачаны. %s " % err
+        console.print(
+            "Кеш не валиден. Все моды будут заново скачаны. %s" % err,
+            style="warning",
         )
         return {}
 
@@ -49,6 +52,6 @@ def dump_cache(
         cache: Кеш.
         path: Путь к файлу, куда будет записан кеш.
     """
-    logger.info("Кеширование '%s'" % path)
+    console.print("Кеширование '%s'" % path, style="info")
     with open(path, "w") as cache_file:
         json.dump(cache, cache_file, indent=4, sort_keys=True)

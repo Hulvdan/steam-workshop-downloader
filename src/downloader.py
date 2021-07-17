@@ -20,7 +20,7 @@ from .config import (
     TEMP_DOWNLOAD_PATH,
 )
 from .game_cfg import GameConfig
-from .logging import logger
+from .logging import console
 
 
 @dataclass
@@ -96,30 +96,42 @@ class Downloader:
         # Проверка на то, что мод находится в установочном пути
         if mod.filename not in self._list_mods_in_cfg_download_path():
             self._cache[mod.mod_id] = {"last_update_date": mod.last_update_date}
-            logger.info("Мод '%s' не был установлен ранее." % mod.name)
+            console.print(
+                "Мод '%s' не был установлен ранее" % mod.name,
+                style="warning",
+            )
             return True
 
         # Проверка на наличие кешированных данных о моде
         cached_mod_data: Optional[ModCache] = self._cache.get(mod.mod_id, None)
         if self._cache.get(mod.mod_id, None) is None:
             self._cache[mod.mod_id] = {"last_update_date": mod.last_update_date}
-            logger.warning("В кеше не найдены данные мода '%s'" % mod.name)
+            console.print(
+                "В кеше не найдены данные мода '%s'" % mod.name, style="warning"
+            )
             return True
 
         # Проверка на соответствие даты последнего обновления мода
         cached_last_update_date: str = cached_mod_data["last_update_date"]
         mod_is_outdated = cached_last_update_date != mod.last_update_date
         if mod_is_outdated:
-            logger.info("Мод '%s' будет скачан заново" % mod.name)
+            console.print(
+                "Вышло новое обновление мода '%s'" % mod.name, style="info"
+            )
             self._cache[mod.mod_id] = {"last_update_date": mod.last_update_date}
             return True
 
-        logger.info("Мод '%s' установлен последней версии" % mod.name)
+        console.print(
+            "Мод '%s' установлен последней версии" % mod.name, style="info"
+        )
         return False
 
     async def run(self) -> None:
         """Запуск загрузчика."""
-        logger.info("%s: Получение информации о модах..." % self._config.name)
+        console.print(
+            "%s: Получение информации о модах..." % self._config.name,
+            style="info",
+        )
         mod_infos: List[ModInfo] = await asyncio.gather(
             *[self._get_mod_info(mod_id) for mod_id in self._config.mods]
         )
@@ -259,9 +271,10 @@ class Downloader:
             async with lock:
                 out_mods.add(mod_info)
         except Exception as err:
-            logger.error(
+            console.print(
                 "Произошла ошибка при получении UUID запроса на скачивание '%s'. %s"
-                % (mod_info.name, err)
+                % (mod_info.name, err),
+                style="error",
             )
 
     async def _check_status(self, mods: Set[ModInfo]) -> Set[ModInfo]:
@@ -288,7 +301,7 @@ class Downloader:
         #     "downloadError": "never transmitted"
         #   }
         # }
-        logger.info("Проверка статуса файлов...")
+        console.print("Проверка статуса файлов...", style="info")
         request_url = "https://backend-03-prd.steamworkshopdownloader.io/api/download/status"
         data = {"uuids": [mod.request_uuid for mod in mods]}
         data_dumped = json.dumps(data)
@@ -313,8 +326,9 @@ class Downloader:
                     )
                 )
                 completed_mods.add(completed_mod)
-                logger.debug(
-                    "Закончено скачивание на сервере '%s'" % completed_mod.name
+                console.print(
+                    "Закончено скачивание на сервере '%s'" % completed_mod.name,
+                    style="info",
                 )
 
         return completed_mods
@@ -329,7 +343,7 @@ class Downloader:
             "https://backend-03-prd.steamworkshopdownloader.io/api/download/transmit?uuid=%s"
             % mod.request_uuid
         )
-        logger.info("Скачивание '%s'..." % mod.name)
+        console.print("Скачивание '%s'..." % mod.name, style="info")
         async with aiohttp.ClientSession() as session:
             response = await session.get(request_url)
 
@@ -339,13 +353,15 @@ class Downloader:
                     content = await response.content.read(DOWNLOAD_CHUNK_SIZE)
                     await out_file.write(content)
 
-        logger.info("Завершено скачивание '%s'" % mod.name)
+        console.print("Завершено скачивание '%s'" % mod.name, style="info")
         return mod
 
     def _extract_mods(self, downloaded_mods: List[ModInfo]) -> None:
-        logger.info("Распаковка модов в '%s'" % self._config.download_path)
+        console.print(
+            "Распаковка модов в '%s'" % self._config.download_path, style="info"
+        )
         for mod in downloaded_mods:
-            logger.debug("Распаковка '%s'" % mod.name)
+            console.print("Распаковка '%s'" % mod.name, style="info")
 
             from_filepath = self._get_mod_temporary_download_path(mod)
             to_filepath = self._get_mod_to_extract_path(mod)

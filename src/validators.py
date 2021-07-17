@@ -3,7 +3,7 @@ from typing import List
 import requests
 from bs4 import BeautifulSoup
 
-from .logging import logger
+from .logging import console
 
 
 def validate_mod_ids(mod_ids: List[int]) -> bool:
@@ -19,7 +19,9 @@ def validate_mod_ids(mod_ids: List[int]) -> bool:
     all_valid = True
     for mod_id in mod_ids:
         if not _validate_mod_id(mod_id):
-            logger.error("Не существует мода с id: '%s'" % mod_id)
+            console.print(
+                "Не существует мода с id: '%s'" % mod_id, style="error"
+            )
             all_valid = False
     return all_valid
 
