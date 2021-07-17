@@ -30,7 +30,7 @@ def load_cache(path: Union[str, os.PathLike]) -> Dict[int, ModCache]:
             "Кеш отсутствует. Все моды будут заново скачаны", style="warning"
         )
         return {}
-    console.print("Загрузка кеша [cyan]'%s'" % path, style="info")
+    console.print("Загрузка кеша [cyan]%s" % path, style="info")
     with open(path) as cache_file:
         cache = json.load(cache_file)
     try:
@@ -52,6 +52,6 @@ def dump_cache(
         cache: Кеш.
         path: Путь к файлу, куда будет записан кеш.
     """
-    console.print("Кеширование [cyan]'%s'" % path, style="info")
+    console.print("Кеширование [cyan]%s" % path, style="info")
     with open(path, "w") as cache_file:
         json.dump(cache, cache_file, indent=4, sort_keys=True)

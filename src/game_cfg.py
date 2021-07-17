@@ -41,8 +41,13 @@ def get_configs(dir_path: str = "configs/") -> List[GameConfig]:
     Returns:
         Список загруженных конфигов.
     """
-    console.print("Чтение конфигов в [cyan]'%s'" % dir_path, style="info")
+    console.print("Чтение конфигов в [cyan]%s" % dir_path, style="info")
     configs: List[GameConfig] = []
+    if not os.path.exists(dir_path):
+        console.print(
+            "Папка [cyan]%s[/cyan] не найдена!" % dir_path, style="error"
+        )
+        return configs
     path = Path(dir_path)
     for file_path in os.listdir(path):
         if os.path.isfile(path / file_path):
@@ -52,7 +57,7 @@ def get_configs(dir_path: str = "configs/") -> List[GameConfig]:
                 if cfg_name == "example":
                     continue
                 console.print(
-                    "Найден конфиг [cyan]'%s'" % (cfg_name + file_splitted[1]),
+                    "Найден конфиг [cyan]%s" % (cfg_name + file_splitted[1]),
                     style="debug",
                 )
                 cfg = _get_config(path / file_path, cfg_name)
@@ -72,7 +77,8 @@ def _get_config(
         cfg_data = config_validation_schema.validate(cfg_data)
     except SchemaError as err:
         console.print(
-            "Конфиг '%s' неверный! %s" % (cfg_name, err), style="error"
+            "Конфиг [cyan]%s[/cyan] неверный! %s" % (cfg_name, err),
+            style="error",
         )
         return None
 

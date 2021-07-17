@@ -1,4 +1,5 @@
 import asyncio
+import encodings.idna
 import os
 import shutil
 
@@ -32,7 +33,11 @@ def download_mods() -> None:
     selected_configs = []
     selectable_configs = [{"name": config.name} for config in configs]
     if len(selectable_configs) == 0:
-        console.print("Не найдено конфигураций. Создайте новую")
+        console.print(
+            "Не найдено конфигураций. Создайте новую.\n"
+            "Посмотрите [cyan]README.md[/cyan], чтобы узнать подробнее",
+            style="warning",
+        )
         return
 
     questions = [
@@ -67,7 +72,7 @@ def download_mods() -> None:
 
 def main() -> None:
     download_mods()
-    console.input("Нажмите [cyan]Enter[/cyan], чтобы выйти.")
+    console.input("\nНажмите [cyan]Enter[/cyan], чтобы выйти.")
 
 
 if __name__ == "__main__":

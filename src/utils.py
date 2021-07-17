@@ -10,7 +10,7 @@ def get_mod_id_from_url(mod_url: Any) -> int:
         return mod_url
 
     if not isinstance(mod_url, str):
-        msg = "Это не строка: '%s'" % mod_url
+        msg = "Это не строка: [cyan]%s[/cyan]" % mod_url
         console.print(msg, style="error")
         raise ValueError(msg)
 
@@ -22,6 +22,6 @@ def get_mod_id_from_url(mod_url: Any) -> int:
     try:
         return int(qs["id"][0])
     except KeyError:
-        msg = "Невозможно получить ID из '%s'" % mod_url
+        msg = "Невозможно получить ID из [cyan]%s[/cyan]" % mod_url
         console.print(msg, style="error")
         raise ValueError(msg)

@@ -76,7 +76,7 @@ class Downloader:
         # Проверка на наличие папки и создание в случае её отсутствия
         if not os.path.exists(self._config.download_path):
             console.print(
-                "Папка '%s' отсутствует. Она будет создана"
+                "Папка [cyan]%s[/cyan] отсутствует. Она будет создана"
                 % self._config.download_path,
                 style="warning",
             )
@@ -279,7 +279,7 @@ class Downloader:
                 out_mods.add(mod_info)
         except Exception as err:
             console.print(
-                "Произошла ошибка при получении UUID запроса на скачивание '%s'. %s"
+                "Произошла ошибка при получении UUID запроса на скачивание [cyan]%s[/cyan]. %s"
                 % (mod_info.name, err),
                 style="error",
             )
@@ -334,7 +334,7 @@ class Downloader:
                 )
                 completed_mods.add(completed_mod)
                 console.print(
-                    "Закончено скачивание на сервере [cyan]'%s'"
+                    "Закончено скачивание на сервере [cyan]%s"
                     % completed_mod.name,
                     style="debug",
                 )
@@ -351,7 +351,7 @@ class Downloader:
             "https://backend-03-prd.steamworkshopdownloader.io/api/download/transmit?uuid=%s"
             % mod.request_uuid
         )
-        console.print("Скачивание [cyan]'%s'" % mod.name, style="debug")
+        console.print("Скачивание [cyan]%s" % mod.name, style="debug")
         async with aiohttp.ClientSession() as session:
             response = await session.get(request_url)
 
@@ -361,18 +361,16 @@ class Downloader:
                     content = await response.content.read(DOWNLOAD_CHUNK_SIZE)
                     await out_file.write(content)
 
-        console.print(
-            "Завершено скачивание [cyan]'%s'" % mod.name, style="debug"
-        )
+        console.print("Завершено скачивание [cyan]%s" % mod.name, style="debug")
         return mod
 
     def _extract_mods(self, downloaded_mods: List[ModInfo]) -> None:
         console.print(
-            "Распаковка модов в [cyan]'%s'" % self._config.download_path,
+            "Распаковка модов в [cyan]%s" % self._config.download_path,
             style="info",
         )
         for mod in downloaded_mods:
-            console.print("Распаковка [cyan]'%s'" % mod.name, style="debug")
+            console.print("Распаковка [cyan]%s" % mod.name, style="debug")
 
             from_filepath = self._get_mod_temporary_download_path(mod)
             to_filepath = self._get_mod_to_extract_path(mod)

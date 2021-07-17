@@ -20,7 +20,8 @@ def validate_mod_ids(mod_ids: List[int]) -> bool:
     for mod_id in mod_ids:
         if not _validate_mod_id(mod_id):
             console.print(
-                "Не существует мода с id: '%s'" % mod_id, style="error"
+                "Не существует мода с id: [cyan]%s[/cyan]" % mod_id,
+                style="error",
             )
             all_valid = False
     return all_valid
