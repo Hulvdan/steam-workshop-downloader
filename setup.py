@@ -15,7 +15,7 @@ setup(
     name="steam-workshop-downloader",
 )
 
-if not os.path.exists("dist/configs"):
-    os.mkdir("dist/configs")
-shutil.copy("configs/example.yml", "dist/configs")
-shutil.copy("README.md", "dist/README.md")
+if not os.path.exists("steam-workshop-downloader/configs"):
+    os.mkdir("steam-workshop-downloader/configs")
+shutil.copy("configs/example.yml", "steam-workshop-downloader/configs")
+shutil.copy("README.md", "steam-workshop-downloader/README.md")
