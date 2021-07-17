@@ -15,7 +15,20 @@ Workshop и затем автоматически распаковывать а�
 В папке `config/` файл `civilization6.yml` имеет следующее содержание:
 
 ```yml
-download_path: c:\Users\pepe\Documents\My Games\Sid Meier's Civilization VI\Mods
+# Это сборник классных модов, которые мне понравились.
+#
+# Кроме косметических модов, здесь присутствуют те, которые радикально меняют
+# геймплей, например, Real Tech Tree и Real Science Pace.
+#
+# Для того, чтобы настроить Real Tech Tree для использования всех возможностей,
+# измените содержание файла 871465857_real_tech_tree/RTT_Govs.sql:
+# Замените значение параметра RTT_OPTION_GOVS на '1':
+# INSERT INTO GlobalParameters (Name, Value) VALUES ('RTT_OPTION_GOVS', '1');
+#
+# Также, если у вас включен мод Real Era Stop, не используйте "No turn limit"
+# опцию при создании игры, а просто установите побольше ходов.
+
+download_path: c:\Users\Hulvdan\Documents\My Games\Sid Meier's Civilization VI\Mods
 mods:
   - 1601259406 # Enhanced Mod Manager
 
@@ -32,6 +45,7 @@ mods:
   - 2460661464 # Quick Deals
   - 939149009 # Sukritact's Simple UI Adjustments
   - 2115302648 # CQUI - Community Quick User Interface
+  - 1691629919 # Better Leader Icon (UI)
 
   - 2266952591 # Extended Policy Cards
   - 2428969051 # Detailed Map Tacks
@@ -74,6 +88,22 @@ mods:
 
 - `python 3.8+`
 - `poetry`
+
+## Установка зависимостей
+
+1. Установка `Python`
+
+    Скачайте Python с [https://www.python.org/downloads/](https://www.python.org/downloads/) и установите
+
+2. Установка `Poetry` на Windows
+
+    (взято из [https://python-poetry.org/docs/#windows-powershell-install-instructions](https://python-poetry.org/docs/#windows-powershell-install-instructions))
+
+    Откройте powershell от имени администратора и выполните следующую команду:
+
+    ```powershell
+    (Invoke-WebRequest -Uri https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -UseBasicParsing).Content | python -
+    ```
 
 ## Запуск для использования программы, а не для разработки
 

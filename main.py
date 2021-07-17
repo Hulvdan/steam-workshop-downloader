@@ -37,7 +37,7 @@ def download_mods() -> None:
 
     questions = [
         {
-            "type": "checkbox",
+            "type": "list",
             "name": "selected_configs",
             "message": "Выберите конфиги:",
             "choices": selectable_configs,
