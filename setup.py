@@ -9,7 +9,6 @@ setup(
         "py2exe": {
             "bundle_files": 1,
             "compressed": True,
-            "build_exe": "steam-workshop-downloader",
         }
     },
     console=["main.py"],
