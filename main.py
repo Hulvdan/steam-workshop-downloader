@@ -39,7 +39,7 @@ def download_mods() -> None:
         {
             "type": "list",
             "name": "selected_configs",
-            "message": "Выберите конфиги:",
+            "message": "Выберите конфиг:",
             "choices": selectable_configs,
         }
     ]
@@ -62,11 +62,12 @@ def download_mods() -> None:
     loop.close()
 
     clean_temp_dir()
-    console.print("Завершено!", style="info")
+    console.print("[cyan]Завершено!")
 
 
 def main() -> None:
     download_mods()
+    console.input("Нажмите [cyan]Enter[/cyan], чтобы выйти.")
 
 
 if __name__ == "__main__":

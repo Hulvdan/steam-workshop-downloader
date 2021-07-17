@@ -113,7 +113,7 @@ class Downloader:
             self._cache[mod.mod_id] = {"last_update_date": mod.last_update_date}
             return (True, "Вышло новое обновление")
 
-        return (False, "Последняя версия")
+        return (False, "Нет обновлений")
 
     async def run(self) -> None:
         """Запуск загрузчика."""
@@ -127,6 +127,7 @@ class Downloader:
         ]
         mod_infos_for_downloading: List[ModInfo] = []
         table = Table()
+        table.add_column("ID")
         table.add_column("Мод")
         table.add_column("Описание")
 
@@ -136,9 +137,12 @@ class Downloader:
         ):
             if reason[0]:
                 mod_infos_for_downloading.append(mod)
-                table.add_row(mod.name, reason[1], style="warning")
-            else:
-                table.add_row(mod.name, reason[1], style="info")
+            table.add_row(
+                str(mod.mod_id),
+                mod.name,
+                reason[1],
+                style=("warning" if reason[0] else "info"),
+            )
         console.print(table)
         if len(mod_infos_for_downloading) == 0:
             console.print("Все моды установлены последней версии", style="info")
