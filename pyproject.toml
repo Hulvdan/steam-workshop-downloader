@@ -5,7 +5,7 @@ description = ""
 authors = ["Алексей Чистов <aleksey.chistov@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "3.9.*"
 
 structlog = "^21.1.0"
 colorama = "^0.4.4"
@@ -35,7 +35,7 @@ types-requests = "^2.25.0"
 types-PyYAML = "^5.4.3"
 
 pytest = "^6.2.4"
-pyinstaller = "^4.4"
+py2exe = "^0.10.4"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
