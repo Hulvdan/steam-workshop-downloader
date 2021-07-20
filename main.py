@@ -61,10 +61,7 @@ def download_mods() -> None:
         )
         return
 
-    loop = asyncio.get_event_loop()
-    pool = [downloader.run() for downloader in downloaders]
-    loop.run_until_complete(asyncio.wait(pool))
-    loop.close()
+    asyncio.run(downloaders[0].run())
 
     clean_temp_dir()
     console.print("[cyan]Завершено!")

@@ -1,5 +1,6 @@
 import asyncio
 import json
+import math
 import os
 import re
 from dataclasses import dataclass
@@ -17,7 +18,10 @@ from .cache import ModCache, dump_cache, load_cache
 from .config import (
     CACHE_DIR,
     CHECK_STATUS_INTERVAL,
+    CHUNK_DOWNLOAD_TIMEOUT,
     DOWNLOAD_CHUNK_SIZE,
+    FILE_DOWNLOAD_TOTAL_TIMEOUT,
+    SIMULTANEOUS_DOWNLOAD_MAX_COUNT,
     TEMP_DOWNLOAD_PATH,
 )
 from .game_cfg import GameConfig
@@ -34,6 +38,7 @@ class ModInfo:
     name: str
     mod_id: int
     last_update_date: str
+    # file_size: int = -1
     request_uuid: Optional[str] = None
 
     @property
@@ -94,23 +99,23 @@ class Downloader:
     def _cache_file_path(self) -> str:
         return str(CACHE_DIR / self._config.name) + ".json"
 
+    def _dump_mod_to_cache(self, mod: ModInfo) -> None:
+        self._cache[mod.mod_id] = {"last_update_date": mod.last_update_date}
+
     def _mod_has_to_be_redownloaded(self, mod: ModInfo) -> Tuple[bool, str]:
         # Проверка на то, что мод находится в установочном пути
         if mod.filename not in self._list_mods_in_cfg_download_path():
-            self._cache[mod.mod_id] = {"last_update_date": mod.last_update_date}
             return (True, "Не был установлен ранее")
 
         # Проверка на наличие кешированных данных о моде
         cached_mod_data: Optional[ModCache] = self._cache.get(mod.mod_id, None)
         if self._cache.get(mod.mod_id, None) is None:
-            self._cache[mod.mod_id] = {"last_update_date": mod.last_update_date}
             return (True, "В кеше не найдены данные")
 
         # Проверка на соответствие даты последнего обновления мода
         cached_last_update_date: str = cached_mod_data["last_update_date"]
         mod_is_outdated = cached_last_update_date != mod.last_update_date
         if mod_is_outdated:
-            self._cache[mod.mod_id] = {"last_update_date": mod.last_update_date}
             return (True, "Вышло новое обновление")
 
         return (False, "Нет обновлений")
@@ -148,29 +153,15 @@ class Downloader:
             console.print("Все моды установлены последней версии", style="info")
             return
 
-        console.print("Создание запросов на скачивание модов", style="info")
-        lock = asyncio.Lock()
-        mod_infos_with_uuids: Set[ModInfo] = set()
-        mod_request_pool = [
-            self._make_request(mod_info, mod_infos_with_uuids, lock)
-            for mod_info in mod_infos_for_downloading
-        ]
-        await asyncio.wait(mod_request_pool)
-
-        await asyncio.sleep(2)
-        completed_mods: Set[ModInfo] = set()
-        while len(mod_infos_with_uuids) > 0:
-            completed_mods |= await self._check_status(mod_infos_with_uuids)
-            mod_infos_with_uuids -= completed_mods
-            await asyncio.sleep(CHECK_STATUS_INTERVAL)
-
-        console.print("Все моды были скачаны на сервере!", style="info")
-        downloaded_mods = await asyncio.gather(
-            *[self._stream_download(mod) for mod in completed_mods]
-        )
-
-        self._extract_mods(downloaded_mods)
+        self._extract_mods(await self._download_mods(mod_infos_for_downloading))
         dump_cache(self._cache, self._cache_file_path)
+
+    async def _download_mods(self, mods: List[ModInfo]) -> List[ModInfo]:
+        sem = asyncio.Semaphore(SIMULTANEOUS_DOWNLOAD_MAX_COUNT)
+        downloaded_mods: List[Optional[ModInfo]] = await asyncio.gather(
+            *[self._process_mod(mod, sem) for mod in mods]
+        )
+        return list(filter(lambda x: x is not None, downloaded_mods))
 
     async def _get_mod_info(self, item_id: int) -> ModInfo:
         """Получение информации о моде по его ID, а конкретно - его название.
@@ -215,6 +206,28 @@ class Downloader:
 
         return ModInfo(item_name, item_id, last_update)
 
+    # async def _process_mod_archive_sizes(
+    #     self, out_mod_infos: Iterable[ModInfo]
+    # ) -> None:
+    #     url = "http://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v0001/"
+    #     data = {
+    #         "itemcount": len(out_mod_infos),
+    #         "format": "json",
+    #     }
+    #     for index, mod in enumerate(out_mod_infos):
+    #         data[f"publishedfileids[{index}]"] = mod.mod_id
+
+    #     async with aiohttp.ClientSession() as session:
+    #         response = await session.post(url, data=data)
+    #     response_json = await response.json()
+
+    #     for index, mod in enumerate(out_mod_infos):
+    #         mod.file_size = int(
+    #             response_json["response"]["publishedfiledetails"][index][
+    #                 "file_size"
+    #             ]
+    #         )
+
     # Нельзя быстро получить много названий с оф сайта, не используя API
     # async def _get_mod_info(self, item_id: int) -> ModInfo:
 
@@ -234,12 +247,9 @@ class Downloader:
     ############################################################################
     # ---------- https://backend-03-prd.steamworkshopdownloader.io ----------- #
     ############################################################################
-    async def _make_request(
-        self,
-        mod_info: ModInfo,
-        out_mods: Set[ModInfo],
-        lock: asyncio.Lock,
-    ) -> None:
+    async def _process_mod(
+        self, mod: ModInfo, sem: asyncio.Semaphore
+    ) -> Optional[ModInfo]:
         # POST Request:
         # https://backend-03-prd.steamworkshopdownloader.io/api/download/request
         # {
@@ -253,11 +263,50 @@ class Downloader:
         #
         # Response:
         # {"uuid": "995afa62-18fe-4d94-9147-eb1d28b74f39"}
+        async with sem:
+            try:
+                await self.make_request(mod)
+            except Exception as err:
+                console.print(
+                    "Произошла ошибка при создании запроса на скачивание [cyan]%s[/cyan]. %s"
+                    % (mod.name, err),
+                    style="error",
+                )
+                return None
+
+            completed = False
+            while not completed:
+                await asyncio.sleep(CHECK_STATUS_INTERVAL)
+                try:
+                    completed = await self._is_download_request_completed(mod)
+                except Exception as err:
+                    console.print(
+                        "Произошла ошибка при проверке статуса запроса на скачивание [cyan]%s[/cyan]. %s"
+                        % (mod.name, err),
+                        style="error",
+                    )
+                    return None
+            if not completed:
+                return None
+
+            try:
+                await self._stream_download(mod)
+            except Exception as err:
+                console.print(
+                    "Произошла ошибка при скачивании [cyan]%s[/cyan]. %s"
+                    % (mod.name, err),
+                    style="error",
+                )
+                return None
+        self._dump_mod_to_cache(mod)
+        return mod
+
+    async def make_request(self, mod: ModInfo) -> None:
         request_url = "https://backend-03-prd.steamworkshopdownloader.io/api/download/request"
         data = {
-            "publishedFileId": mod_info.mod_id,
+            "publishedFileId": mod.mod_id,
             "collectionId": None,
-            "extract": True,
+            "extract": False,
             "hidden": False,
             "direct": False,
             "autodownload": False,
@@ -274,25 +323,22 @@ class Downloader:
                 )
             response.raise_for_status()
             text = await response.text()
-            mod_info.request_uuid = json.loads(text)["uuid"]
-            async with lock:
-                out_mods.add(mod_info)
+            mod.request_uuid = json.loads(text)["uuid"]
         except Exception as err:
             console.print(
                 "Произошла ошибка при получении UUID запроса на скачивание [cyan]%s[/cyan]. %s"
-                % (mod_info.name, err),
+                % (mod.name, err),
                 style="error",
             )
 
-    async def _check_status(self, mods: Set[ModInfo]) -> Set[ModInfo]:
-        """Проверить статус файлов.
+    async def _is_download_request_completed(self, mod: ModInfo) -> bool:
+        """Проверить статус запроса на скачивание мода на сервере.
 
         Args:
-            mods: Набор информация о модах, в которых указаны поля
-                  `request_uuid`.
+            mod: Мод с указанным полем `request_uuid`.
 
         Returns:
-            Набор завершённых UUID'ов.
+            Готов к скачиванию или нет.
         """
         # POST Request:
         # https://backend-03-prd.steamworkshopdownloader.io/api/download/status
@@ -308,38 +354,29 @@ class Downloader:
         #     "downloadError": "never transmitted"
         #   }
         # }
-        console.print("Проверка статуса запросов на скачивание", style="debug")
+        # console.print("Проверка статуса запросов на скачивание", style="debug")
         request_url = "https://backend-03-prd.steamworkshopdownloader.io/api/download/status"
-        data = {"uuids": [mod.request_uuid for mod in mods]}
-        data_dumped = json.dumps(data)
+        data = json.dumps({"uuids": [mod.request_uuid]})
         headers = {
             "Content-Type": "text/plain",
-            "Content-Length": str(len(data_dumped)),
+            "Content-Length": str(len(data)),
         }
         async with aiohttp.ClientSession() as session:
             response = await session.post(
-                request_url, data=data_dumped, headers=headers
+                request_url, data=data, headers=headers
             )
 
-        completed_mods: Set[ModInfo] = set()
-        resp_text = await response.text()
-        response_uuids = json.loads(resp_text)
+        text = await response.text()
+        response_uuids = json.loads(text)
         for uuid, uuid_data in response_uuids.items():
             if uuid_data["status"] == "prepared":
-                completed_mod = next(
-                    filter(
-                        lambda mod: mod.request_uuid == uuid,
-                        mods,
-                    )
-                )
-                completed_mods.add(completed_mod)
+                if uuid == mod.request_uuid:
+                    return True
                 console.print(
-                    "Закончено скачивание на сервере [cyan]%s"
-                    % completed_mod.name,
+                    "Закончено скачивание на сервере [cyan]%s" % mod.name,
                     style="debug",
                 )
-
-        return completed_mods
+        return False
 
     async def _stream_download(self, mod: ModInfo) -> ModInfo:
         # GET Request:
@@ -352,7 +389,13 @@ class Downloader:
             % mod.request_uuid
         )
         console.print("Скачивание [cyan]%s" % mod.name, style="debug")
-        async with aiohttp.ClientSession() as session:
+        timeout = aiohttp.ClientTimeout(
+            total=FILE_DOWNLOAD_TOTAL_TIMEOUT,
+            sock_read=CHUNK_DOWNLOAD_TIMEOUT,
+            sock_connect=None,
+            connect=None,
+        )
+        async with aiohttp.ClientSession(timeout=timeout) as session:
             response = await session.get(request_url)
 
             download_path = self._get_mod_temporary_download_path(mod)
@@ -364,13 +407,25 @@ class Downloader:
         console.print("Завершено скачивание [cyan]%s" % mod.name, style="debug")
         return mod
 
+    async def _gen_download(self, response, out_file) -> int:
+        while True:
+            content = await response.content.read(DOWNLOAD_CHUNK_SIZE)
+            await out_file.write(content)
+            yield
+            if response.content.at_eof():
+                return
+
     def _extract_mods(self, downloaded_mods: List[ModInfo]) -> None:
         console.print(
             "Распаковка модов в [cyan]%s" % self._config.download_path,
             style="info",
         )
         for mod in downloaded_mods:
-            console.print("Распаковка [cyan]%s" % mod.name, style="debug")
+            console.print(
+                "Распаковка [cyan]%s[/cyan] в [cyan]%s"
+                % (mod.name, mod.filename),
+                style="debug",
+            )
 
             from_filepath = self._get_mod_temporary_download_path(mod)
             to_filepath = self._get_mod_to_extract_path(mod)
