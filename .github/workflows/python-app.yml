@@ -1,42 +1,41 @@
-# This workflow will install Python dependencies, run tests and lint with a single version of Python
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+name: release
 
-name: Python application
-
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+# Запускать только при назначении тега вручную
+on: push
 
 jobs:
-  build:
+  release:
     runs-on: windows-latest
-
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.9
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install poetry
-        poetry export -f requirements.txt -o requirements.txt --dev
-        pip install -r requirements.txt
-    - name: Test with pytest
-      run: |
-        pytest
-    - name: Build Application
-      run: |
-        python setup.py py2exe -d steam-workshop-downloader
-        python -m zipfile -c steam-workshop-downloader.zip steam-workshop-downloader/
-    - uses: "marvinpinto/action-automatic-releases@latest"
-      with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "latest"
-        prerelease: false
-        title: "Development Build"
-        files: |
-          steam-workshop-downloader.zip
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry export -f requirements.txt -o requirements.txt --dev
+          pip install -r requirements.txt
+          pip install py2exe
+      - name: Test with pytest
+        run: |
+          pytest
+      - name: Build Application
+        # Запускать, если указан тег
+        if: ${{ gstartsWith(github.ref, 'refs/tags/') }}
+        run: |
+          python setup.py py2exe -d steam-workshop-downloader
+          python -m zipfile -c steam-workshop-downloader.zip steam-workshop-downloader/
+      - name: Release
+        # Запускать, если указан тег
+        if: ${{ gstartsWith(github.ref, 'refs/tags/') }}
+        uses: softprops/action-gh-release@v1
+        with:
+          # name: ... # Name of the release. defaults to tag name
+          body_path: CHANGELOG.md
+          files: steam-workshop-downloader.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
