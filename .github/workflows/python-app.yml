@@ -27,8 +27,8 @@ jobs:
         # Запускать, если указан тег
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         run: |
-          python setup.py py2exe -d steam-workshop-downloader
-          python -m zipfile -c steam-workshop-downloader.zip steam-workshop-downloader/
+          python setup.py py2exe
+          python make_archive.py
       - name: Release
         # Запускать, если указан тег
         if: ${{ startsWith(github.ref, 'refs/tags/') }}

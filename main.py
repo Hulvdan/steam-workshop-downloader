@@ -49,6 +49,10 @@ def download_mods() -> None:
         }
     ]
     answers = prompt(questions)
+    if answers == {}:
+        console.print("Завершение программы", style="warning")
+        return
+
     selected_configs = list(
         filter(lambda cfg: cfg.name in answers["selected_configs"], configs)
     )
