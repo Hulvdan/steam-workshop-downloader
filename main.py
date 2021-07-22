@@ -1,5 +1,4 @@
 import asyncio
-import encodings.idna
 import os
 import shutil
 
@@ -8,6 +7,7 @@ from src.config import TEMP_DOWNLOAD_PATH
 from src.downloader import Downloader
 from src.game_cfg import get_configs
 from src.logging import console
+from update import handle_update, is_running_latest_version
 
 
 def remake_temp_dir() -> None:
@@ -24,10 +24,6 @@ def clean_temp_dir() -> None:
 
 
 def download_mods() -> None:
-    console.print(
-        "steam-workshop-downloader", style="black on yellow", justify="center"
-    )
-    remake_temp_dir()
     configs = get_configs()
 
     selected_configs = []
@@ -49,7 +45,7 @@ def download_mods() -> None:
         }
     ]
     answers = prompt(questions)
-    if answers == {}:
+    if not answers:
         console.print("Завершение программы", style="warning")
         return
 
@@ -57,6 +53,7 @@ def download_mods() -> None:
         filter(lambda cfg: cfg.name in answers["selected_configs"], configs)
     )
 
+    remake_temp_dir()
     downloaders = [Downloader(cfg) for cfg in selected_configs]
     if len(downloaders) == 0:
         console.print(
@@ -72,6 +69,32 @@ def download_mods() -> None:
 
 
 def main() -> None:
+    console.print(
+        "steam-workshop-downloader",
+        style="black on yellow",
+        justify="center",
+    )
+    console.print(
+        "https://github.com/Hulvdan/steam-workshop-downloader",
+        style="italic red on yellow",
+        justify="center",
+    )
+    if is_running_latest_version():
+        console.print("Установлена последняя версия!", style="info")
+    else:
+        questions = [
+            {
+                "type": "confirm",
+                "name": "update",
+                "message": "Обновиться до последней версии программы?",
+                "default": True,
+            }
+        ]
+        answer = prompt(questions)
+        if answer and answer["update"]:
+            handle_update()
+            return
+
     download_mods()
     console.input("\nНажмите [cyan]Enter[/cyan], чтобы выйти.")
 

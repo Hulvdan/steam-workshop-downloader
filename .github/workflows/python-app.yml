@@ -28,7 +28,7 @@ jobs:
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         run: |
           python setup.py py2exe
-          python make_archive.py
+          python make.py
       - name: Release
         # Запускать, если указан тег
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
