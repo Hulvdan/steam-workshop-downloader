@@ -1,6 +1,5 @@
 import asyncio
 import json
-import math
 import os
 import re
 from dataclasses import dataclass
@@ -76,52 +75,19 @@ class Downloader:
             os.mkdir(CACHE_DIR)
         self._cache = load_cache(self._cache_file_path)
 
-    @lru_cache(1)
-    def _list_mods_in_cfg_download_path(self) -> Set[str]:
-        # Проверка на наличие папки и создание в случае её отсутствия
-        if not os.path.exists(self._config.download_path):
-            console.print(
-                "Папка [cyan]%s[/cyan] отсутствует. Она будет создана"
-                % self._config.download_path,
-                style="warning",
-            )
-            os.mkdir(self._config.download_path)
-        # Список установленных модов в этой папке
-        mods = filter(
-            lambda path: os.path.isdir(
-                os.path.join(self._config.download_path, path)
-            ),
-            os.listdir(self._config.download_path),
-        )
-        return set(mods)
-
-    @property
-    def _cache_file_path(self) -> str:
-        return str(CACHE_DIR / self._config.name) + ".json"
-
-    def _dump_mod_to_cache(self, mod: ModInfo) -> None:
-        self._cache[mod.mod_id] = {"last_update_date": mod.last_update_date}
-
-    def _mod_has_to_be_redownloaded(self, mod: ModInfo) -> Tuple[bool, str]:
-        # Проверка на то, что мод находится в установочном пути
-        if mod.filename not in self._list_mods_in_cfg_download_path():
-            return (True, "Не был установлен ранее")
-
-        # Проверка на наличие кешированных данных о моде
-        cached_mod_data: Optional[ModCache] = self._cache.get(mod.mod_id, None)
-        if self._cache.get(mod.mod_id, None) is None:
-            return (True, "В кеше не найдены данные")
-
-        # Проверка на соответствие даты последнего обновления мода
-        cached_last_update_date: str = cached_mod_data["last_update_date"]
-        mod_is_outdated = cached_last_update_date != mod.last_update_date
-        if mod_is_outdated:
-            return (True, "Вышло новое обновление")
-
-        return (False, "Нет обновлений")
-
     async def run(self) -> None:
-        """Запуск загрузчика."""
+        """Запуск загрузчика.
+
+        Процесс работы состоит из 5-ти шагов:
+        1. Сбор информации о модах (названия, даты последнего обновления).
+        2. Проверка с использованием кеша на то, нужно ли скачивать мод.
+
+        3. Скачивание отфильтрованные модов. Ограниченное количество модов могут
+            скачиваться одновременно.
+
+        4. Разархивация скачанных модов.
+        5. Обновление кеша.
+        """
         console.print("Получение информации о модах", style="info")
         mod_infos: List[ModInfo] = await asyncio.gather(
             *[self._get_mod_info(mod_id) for mod_id in self._config.mods]
@@ -131,10 +97,7 @@ class Downloader:
             self._mod_has_to_be_redownloaded(mod) for mod in mod_infos
         ]
         mod_infos_for_downloading: List[ModInfo] = []
-        table = Table()
-        table.add_column("ID")
-        table.add_column("Мод")
-        table.add_column("Описание")
+        table = Table("ID", "Мод", "Описание")
 
         for mod, reason in sorted(
             zip(mod_infos, mods_and_download_reasons),
@@ -156,12 +119,63 @@ class Downloader:
         self._extract_mods(await self._download_mods(mod_infos_for_downloading))
         dump_cache(self._cache, self._cache_file_path)
 
-    async def _download_mods(self, mods: List[ModInfo]) -> List[ModInfo]:
-        sem = asyncio.Semaphore(SIMULTANEOUS_DOWNLOAD_MAX_COUNT)
-        downloaded_mods: List[Optional[ModInfo]] = await asyncio.gather(
-            *[self._process_mod(mod, sem) for mod in mods]
+    @lru_cache(1)
+    def _list_mods_in_cfg_download_path(self) -> Set[str]:
+        # Проверка на наличие папки и создание в случае её отсутствия
+        if not os.path.exists(self._config.download_path):
+            console.print(
+                "Папка [cyan]%s[/cyan] отсутствует. Она будет создана"
+                % self._config.download_path,
+                style="warning",
+            )
+            os.mkdir(self._config.download_path)
+        # Список установленных модов в этой папке
+        mods = filter(
+            lambda path: os.path.isdir(
+                os.path.join(self._config.download_path, path)
+            ),
+            os.listdir(self._config.download_path),
         )
-        return list(filter(lambda x: x is not None, downloaded_mods))
+        return set(mods)
+
+    def _dump_mod_to_cache(self, mod: ModInfo) -> None:
+        self._cache[mod.mod_id] = {"last_update_date": mod.last_update_date}
+
+    def _mod_has_to_be_redownloaded(self, mod: ModInfo) -> Tuple[bool, str]:
+        """Проверка на то, нужно ли скачивать мод.
+
+        Проверка идёт по следующим параметрам:
+        1. Путь установки. Качаем, если не установлен.
+        2. Данные мода кеша. Качаем, если не найдены.
+        3. Дата последнего обновления. Качаем, если вышло обновление.
+
+        Args:
+            mod: Мод.
+
+        Returns:
+            (True, str), если мод не нужнается в повторном случае. (False, str)
+            в противном случае с описанием причины, почему нужно перекачать.
+        """
+        # Проверка на то, что мод находится в установочном пути
+        if mod.filename not in self._list_mods_in_cfg_download_path():
+            return (True, "Не был установлен ранее")
+
+        # Проверка на наличие кешированных данных о моде
+        cached_mod_data: Optional[ModCache] = self._cache.get(mod.mod_id, None)
+        if cached_mod_data is None:
+            return (True, "В кеше не найдены данные")
+
+        # Проверка на соответствие даты последнего обновления мода
+        cached_last_update_date: str = cached_mod_data["last_update_date"]
+        mod_is_outdated = cached_last_update_date != mod.last_update_date
+        if mod_is_outdated:
+            return (True, "Вышло новое обновление")
+
+        return (False, "Нет обновлений")
+
+    @property
+    def _cache_file_path(self) -> str:
+        return str(CACHE_DIR / self._config.name) + ".json"
 
     async def _get_mod_info(self, item_id: int) -> ModInfo:
         """Получение информации о моде по его ID, а конкретно - его название.
@@ -206,43 +220,12 @@ class Downloader:
 
         return ModInfo(item_name, item_id, last_update)
 
-    # async def _process_mod_archive_sizes(
-    #     self, out_mod_infos: Iterable[ModInfo]
-    # ) -> None:
-    #     url = "http://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v0001/"
-    #     data = {
-    #         "itemcount": len(out_mod_infos),
-    #         "format": "json",
-    #     }
-    #     for index, mod in enumerate(out_mod_infos):
-    #         data[f"publishedfileids[{index}]"] = mod.mod_id
-
-    #     async with aiohttp.ClientSession() as session:
-    #         response = await session.post(url, data=data)
-    #     response_json = await response.json()
-
-    #     for index, mod in enumerate(out_mod_infos):
-    #         mod.file_size = int(
-    #             response_json["response"]["publishedfiledetails"][index][
-    #                 "file_size"
-    #             ]
-    #         )
-
-    # Нельзя быстро получить много названий с оф сайта, не используя API
-    # async def _get_mod_info(self, item_id: int) -> ModInfo:
-
-    #     info_url = (
-    #         f"https://steamcommunity.com/sharedfiles/filedetails/?id={item_id}"
-    #     )
-
-    #     async with aiohttp.ClientSession() as session:
-    #         response = await session.get(info_url)
-    #     response.raise_for_status()
-
-    #     soup = BeautifulSoup(await response.text(), "html.parser")
-    #     item_name: str = soup.find("div", "workshopItemTitle").text
-
-    #     return ModInfo(item_name, item_id)
+    async def _download_mods(self, mods: List[ModInfo]) -> List[ModInfo]:
+        sem = asyncio.Semaphore(SIMULTANEOUS_DOWNLOAD_MAX_COUNT)
+        downloaded_mods: List[Optional[ModInfo]] = await asyncio.gather(
+            *[self._process_mod(mod, sem) for mod in mods]
+        )
+        return [mod for mod in downloaded_mods if mod is not None]
 
     ############################################################################
     # ---------- https://backend-03-prd.steamworkshopdownloader.io ----------- #
@@ -250,6 +233,24 @@ class Downloader:
     async def _process_mod(
         self, mod: ModInfo, sem: asyncio.Semaphore
     ) -> Optional[ModInfo]:
+        """Скачивание мода и распаковка.
+
+        Процесс установки мода состоит из 3-х шагов:
+        1. Создание запроса на скачивание.
+
+        2. Ожидание окончания скачивания на сервере (ожидаем смену статуса
+            запроса, созданного на предыдущем )
+
+        3. Скачивание мода.
+
+        Args:
+            mod: Мод, которые надо скачать.
+            sem: Семафор для ограничения количества одновременно скачиваемых \
+                модов.
+
+        Returns:
+            None, если не удалось скачать мод. ModInfo, в противном случае.
+        """
         # POST Request:
         # https://backend-03-prd.steamworkshopdownloader.io/api/download/request
         # {
@@ -265,7 +266,7 @@ class Downloader:
         # {"uuid": "995afa62-18fe-4d94-9147-eb1d28b74f39"}
         async with sem:
             try:
-                await self.make_request(mod)
+                await self._make_request(mod)
             except Exception as err:
                 console.print(
                     "Произошла ошибка при создании запроса на скачивание [cyan]%s[/cyan]. %s"
@@ -301,7 +302,7 @@ class Downloader:
         self._dump_mod_to_cache(mod)
         return mod
 
-    async def make_request(self, mod: ModInfo) -> None:
+    async def _make_request(self, mod: ModInfo) -> None:
         request_url = "https://backend-03-prd.steamworkshopdownloader.io/api/download/request"
         data = {
             "publishedFileId": mod.mod_id,
@@ -407,14 +408,6 @@ class Downloader:
         console.print("Завершено скачивание [cyan]%s" % mod.name, style="debug")
         return mod
 
-    async def _gen_download(self, response, out_file) -> int:
-        while True:
-            content = await response.content.read(DOWNLOAD_CHUNK_SIZE)
-            await out_file.write(content)
-            yield
-            if response.content.at_eof():
-                return
-
     def _extract_mods(self, downloaded_mods: List[ModInfo]) -> None:
         console.print(
             "Распаковка модов в [cyan]%s" % self._config.download_path,
@@ -439,6 +432,44 @@ class Downloader:
     def _get_mod_to_extract_path(self, mod: ModInfo) -> str:
 
         return str(Path(self._config.download_path) / mod.filename)
+
+    # async def _process_mod_archive_sizes(
+    #     self, out_mod_infos: Iterable[ModInfo]
+    # ) -> None:
+    #     url = "http://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v0001/"
+    #     data = {
+    #         "itemcount": len(out_mod_infos),
+    #         "format": "json",
+    #     }
+    #     for index, mod in enumerate(out_mod_infos):
+    #         data[f"publishedfileids[{index}]"] = mod.mod_id
+
+    #     async with aiohttp.ClientSession() as session:
+    #         response = await session.post(url, data=data)
+    #     response_json = await response.json()
+
+    #     for index, mod in enumerate(out_mod_infos):
+    #         mod.file_size = int(
+    #             response_json["response"]["publishedfiledetails"][index][
+    #                 "file_size"
+    #             ]
+    #         )
+
+    # Нельзя быстро получить много названий с оф сайта, не используя API
+    # async def _get_mod_info(self, item_id: int) -> ModInfo:
+
+    #     info_url = (
+    #         f"https://steamcommunity.com/sharedfiles/filedetails/?id={item_id}"
+    #     )
+
+    #     async with aiohttp.ClientSession() as session:
+    #         response = await session.get(info_url)
+    #     response.raise_for_status()
+
+    #     soup = BeautifulSoup(await response.text(), "html.parser")
+    #     item_name: str = soup.find("div", "workshopItemTitle").text
+
+    #     return ModInfo(item_name, item_id)
 
     ############################################################################
     # -------------------- http://steamworkshop.download/ -------------------- #

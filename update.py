@@ -2,7 +2,7 @@ import json
 import os
 from functools import lru_cache
 from tempfile import TemporaryFile
-from typing import Any, Dict, Union
+from typing import IO, Any, Dict, Union
 from zipfile import ZipFile
 
 import requests
@@ -50,14 +50,14 @@ def _get_release_download_link(release_data: Dict[str, Any]) -> str:
     return release_data["assets"][0]["browser_download_url"]
 
 
-def _download_release_archive(url: str, to_file: TemporaryFile) -> None:
+def _download_release_archive(url: str, to_file: IO[bytes]) -> None:
     """Скачивание архива."""
     response = requests.get(url)
     to_file.write(response.content)
 
 
 def _extract_release_archive(
-    archive_file: TemporaryFile, extract_path: Union[str, os.PathLike]
+    archive_file: IO[bytes], extract_path: Union[str, os.PathLike]
 ) -> None:
     """Распаковка архива программы."""
     with ZipFile(archive_file, "r") as archive:

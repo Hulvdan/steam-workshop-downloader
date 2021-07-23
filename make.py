@@ -3,7 +3,11 @@ from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
 
-def make_archive():
+def make_archive() -> None:
+    """Это скрипт для добавления файлов в release-архив программы.
+
+    Перед использованием необходимо скомпилировать программу с помощью py2exe.
+    """
     build_directory = "dist"
     export_archive_name = "steam-workshop-downloader"
     if not os.path.exists(build_directory):

@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 
 #: Версия
 VERSION = "1.0.2"
@@ -26,4 +27,4 @@ SIMULTANEOUS_DOWNLOAD_MAX_COUNT = 5
 CHUNK_DOWNLOAD_TIMEOUT = 5
 
 #: Общее ограничение времени скачивания мода.
-FILE_DOWNLOAD_TOTAL_TIMEOUT = None
+FILE_DOWNLOAD_TOTAL_TIMEOUT: Optional[int] = None

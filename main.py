@@ -87,7 +87,7 @@ def main() -> None:
                 "type": "confirm",
                 "name": "update",
                 "message": "Обновиться до последней версии программы?",
-                "default": True,
+                "default": False,
             }
         ]
         answer = prompt(questions)
