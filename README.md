@@ -6,7 +6,7 @@
 
 ## Что это такое
 
-Данная программа позволяет скачивать указанные пользователем моды из Steam
+Данная программа позволяет скачивать указанные пользователем моды из Steam.
 Workshop и затем автоматически распаковывать архивы в указанную им же папку.
 
 Для добавления списка модов для определённой игры создайте копию файла
@@ -59,7 +59,8 @@ mods:
   - 911395113 # Good Goody Huts
   - 1958135962 # Better Balanced Starts (BBS)
   - 1947948094 # HotFixes
-  # (Real Tech Tree) Есть опциональная настройка: Governments
+  # (Real Tech Tree) Есть опциональная настройка: Governments.
+  # Конфигурация описана в начале файла.
   # https://steamcommunity.com/sharedfiles/filedetails/?id=871465857
   - 871465857 # Real Tech Tree
   - 875009475 # Real Science Pace
@@ -80,59 +81,35 @@ mods:
 
 *__Примечание:__ как указано в файле `config/example.yml`, можно
 указывать как id модов (`2266952591`), так и ссылки на них
-(`https://steamcommunity.com/sharedfiles/filedetails/?id=2266952591`)*
+(`https://steamcommunity.com/sharedfiles/filedetails/?id=2266952591`).*
 
 Таким образом, будут скачаны архивы всех
 перечисленных модов, а затем распакованы по пути
 `c:\Users\pepe\Documents\My Games\Sid Meier's Civilization VI\Mods`
 в отдельные папки.
 
-## Требования для запуска
+## Скачать и запустить
 
-- `python 3.8+`
-- `poetry`
-
-## Установка зависимостей
-
-1. Установка `Python`
-
-    Скачайте Python с [https://www.python.org/downloads/](https://www.python.org/downloads/) и установите
-
-2. Установка `Poetry` на Windows
-
-    (взято из [https://python-poetry.org/docs/#windows-powershell-install-instructions](https://python-poetry.org/docs/#windows-powershell-install-instructions))
-
-    Откройте powershell от имени администратора и выполните следующую команду:
-
-    ```powershell
-    (Invoke-WebRequest -Uri https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -UseBasicParsing).Content | python -
-    ```
-
-## Запуск для использования программы, а не для разработки
-
-Откройте терминал, перейдите в папку проекта и выполните следующие команды:
-
-```bash
-poetry install --no-dev
-poetry shell
-python main.py
-```
-
-Программа пройдётся по всем файлам в папке `config/`, скачает указанные моды в
-каждом и поместит их в указанные папки.
+Перейдите в раздел **Releases**, скачайте архив `steam-workshop-downloader.zip`,
+распакуйте и запустите файл `main.exe`.
 
 ## Разработка
 
+### Требования для запуска
+
+- `python 3.9.*`
+- `poetry`
+
 ### Запуск
 
+Необходимо активировать виртуальное окружение перед запуском основного скрипта.
+
 ```bash
-poetry install
-poetry shell
+poetry install # установка виртуального окружения
+poetry shell # активация в.о.
 python main.py
 ```
 
 ### Тестирование
 
-```bash
-pytest
-```
+Использовать `pytest` для тестирования.
