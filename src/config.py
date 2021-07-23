@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Optional
 
 #: Версия
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 
 #: Буфер в байтах для скачивания файлов с сервера.
 DOWNLOAD_CHUNK_SIZE = 16 * 1024  # noqa: WPS432

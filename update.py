@@ -1,7 +1,6 @@
 import json
 import os
 from functools import lru_cache
-from tempfile import TemporaryFile
 from typing import IO, Any, Dict, Union
 from zipfile import ZipFile
 
@@ -14,14 +13,18 @@ def handle_update() -> None:
     """Обновление программы до последней версии."""
     console.print("Получение ссылки на скачивание...", style="debug")
     data = _get_latest_release_data()
+    tag = _get_release_tag(data)
     download_url = _get_release_download_link(data)
 
-    with TemporaryFile() as archive:
+    with open(f"steam-workshop-downloader-{tag}.zip", "wb") as archive:
         console.print("Скачивание...", style="debug")
         _download_release_archive(download_url, archive)
 
-        console.print("Распакова...", style="debug")
-        _extract_release_archive(archive, os.curdir)
+    console.print(
+        "Архив был скачан в директории приложения.\n"
+        "Распакуйте его, заменив файлы.",
+        style="warning",
+    )
 
 
 def is_running_latest_version() -> bool:
