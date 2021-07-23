@@ -31,18 +31,12 @@ jobs:
         run: |
           python setup.py py2exe
           python make.py
-      - name: Generate Changelog
-        # Запускать, если указан тег
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
-        run: |
-          python gen_changelog.py $GITHUB_REF
       - name: Release
         # Запускать, если указан тег
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         uses: softprops/action-gh-release@v1
         with:
           # name: ... # Name of the release. defaults to tag name
-          body_path: CHANGELOG.md
           files: steam-workshop-downloader.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
