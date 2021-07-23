@@ -1,15 +1,16 @@
+import sys
 from typing import List
 
 from git import Repo
 
 
-def gen_changelog() -> None:
+def gen_changelog(branch: str = "master") -> None:
     """Создание changelog'а по коммитам."""
     repo = Repo.init()
     assert not repo.bare  # noqa: S101
     messages: List[str] = []
     tagged_commits = [tag.commit for tag in repo.tags]
-    for index, commit in enumerate(repo.iter_commits(rev="master")):
+    for index, commit in enumerate(repo.iter_commits(rev=branch)):
         if index != 0 and commit in tagged_commits:
             break
         messages.append(commit.message.strip())
@@ -18,4 +19,7 @@ def gen_changelog() -> None:
 
 
 if __name__ == "__main__":
-    gen_changelog()
+    if len(sys.argv) > 1:
+        gen_changelog(sys.argv[1])
+    else:
+        gen_changelog()
