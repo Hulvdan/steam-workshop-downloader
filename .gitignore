@@ -142,3 +142,4 @@ cython_debug/
 .cache/
 .temp/
 configs/
+CHANGELOG.md

@@ -30,6 +30,8 @@ rope = "^0.19.0"
 
 mypy = "^0.910"
 
+GitPython = "^3.1.19"
+
 types-aiofiles = "^0.1.7"
 types-requests = "^2.25.0"
 types-PyYAML = "^5.4.3"

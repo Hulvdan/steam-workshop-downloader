@@ -3,7 +3,7 @@ import os
 import shutil
 
 from PyInquirer import prompt
-from src.config import TEMP_DOWNLOAD_PATH
+from src.config import TEMP_DOWNLOAD_PATH, VERSION
 from src.downloader import Downloader
 from src.game_cfg import get_configs
 from src.logging import console
@@ -70,7 +70,7 @@ def download_mods() -> None:
 
 def main() -> None:
     console.print(
-        "steam-workshop-downloader",
+        f"steam-workshop-downloader {VERSION}",
         style="black on yellow",
         justify="center",
     )
@@ -80,7 +80,7 @@ def main() -> None:
         justify="center",
     )
     if is_running_latest_version():
-        console.print("Установлена последняя версия!", style="info")
+        console.print("Установлена последняя версия программы", style="info")
     else:
         questions = [
             {

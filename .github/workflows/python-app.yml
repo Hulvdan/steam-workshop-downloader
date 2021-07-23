@@ -29,6 +29,11 @@ jobs:
         run: |
           python setup.py py2exe
           python make.py
+      - name: Generate Changelog
+        # Запускать, если указан тег
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          python gen_changelog.py
       - name: Release
         # Запускать, если указан тег
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
