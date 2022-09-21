@@ -1,8 +1,17 @@
-# steam-workshop-downloader
+# ABANDONED! steam-workshop-downloader
 
-*Проект задумывался для закрепления асинхронного программирования на Python.*
+Не работает!
+
+Тк не хотелось получать никакой токен стима, чтобы можно было качать моды
+официально, моды качались через
+[steamworkshopdownloader.io](https://steamworkshopdownloader.io/)
+
+Со временем Valve запретила распространять моды через этот сайт,
+из-за чего этот код можно закинуть в чернодырие гитхаба.
 
 ![steam-workshop-downloader](https://i.imgur.com/3Sfx0py.png)
+
+*Проект задумывался для закрепления асинхронного программирования на Python.*
 
 ## Что это такое
 
